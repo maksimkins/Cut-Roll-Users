@@ -1,0 +1,44 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Cut-Roll-Users", "Cut-Roll-Users", "{D283BDBB-977C-489F-BE91-BDB189290A56}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{7652BEAC-F86E-41E1-BBC2-FA9852235E12}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cut-Roll-Users.Core", "Cut-Roll-Users\src\Cut-Roll-Users.Core\Cut-Roll-Users.Core.csproj", "{EE2ED351-C309-47D8-BE8F-4F8ED9CDEE57}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cut-Roll-Users.Infrastructure", "Cut-Roll-Users\src\Cut-Roll-Users.Infrastructure\Cut-Roll-Users.Infrastructure.csproj", "{EFDC3DC2-287D-4367-8FF2-81F07201C0CA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cut-Roll-Users.Api", "Cut-Roll-Users\src\Cut-Roll-Users.Api\Cut-Roll-Users.Api.csproj", "{A667B20E-A3DD-4DC3-82FA-DA598DA3F982}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EE2ED351-C309-47D8-BE8F-4F8ED9CDEE57}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EE2ED351-C309-47D8-BE8F-4F8ED9CDEE57}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EE2ED351-C309-47D8-BE8F-4F8ED9CDEE57}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EE2ED351-C309-47D8-BE8F-4F8ED9CDEE57}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EFDC3DC2-287D-4367-8FF2-81F07201C0CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EFDC3DC2-287D-4367-8FF2-81F07201C0CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EFDC3DC2-287D-4367-8FF2-81F07201C0CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EFDC3DC2-287D-4367-8FF2-81F07201C0CA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A667B20E-A3DD-4DC3-82FA-DA598DA3F982}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A667B20E-A3DD-4DC3-82FA-DA598DA3F982}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A667B20E-A3DD-4DC3-82FA-DA598DA3F982}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A667B20E-A3DD-4DC3-82FA-DA598DA3F982}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{7652BEAC-F86E-41E1-BBC2-FA9852235E12} = {D283BDBB-977C-489F-BE91-BDB189290A56}
+		{EE2ED351-C309-47D8-BE8F-4F8ED9CDEE57} = {7652BEAC-F86E-41E1-BBC2-FA9852235E12}
+		{EFDC3DC2-287D-4367-8FF2-81F07201C0CA} = {7652BEAC-F86E-41E1-BBC2-FA9852235E12}
+		{A667B20E-A3DD-4DC3-82FA-DA598DA3F982} = {7652BEAC-F86E-41E1-BBC2-FA9852235E12}
+	EndGlobalSection
+EndGlobal
