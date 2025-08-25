@@ -54,6 +54,11 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasForeignKey(ml => ml.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasMany(u => u.WantToWatchFilms)
+            .WithOne(wtw => wtw.User)
+            .HasForeignKey(wtw => wtw.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.HasMany(u => u.Watched)
             .WithOne(wm => wm.User)
             .HasForeignKey(wm => wm.UserId)

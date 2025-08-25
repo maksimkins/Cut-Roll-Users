@@ -111,6 +111,11 @@ public class MovieConfiguration : IEntityTypeConfiguration<Movie>
             .HasForeignKey(ml => ml.MovieId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasMany(m => m.WantToWatchFilms)
+            .WithOne(wtw => wtw.Movie)
+            .HasForeignKey(wtw => wtw.MovieId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.HasMany(m => m.Watched)
             .WithOne(wm => wm.Movie)
             .HasForeignKey(wm => wm.MovieId)

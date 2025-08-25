@@ -8,6 +8,7 @@ using Cut_Roll_Users.Core.ListLikes.Models;
 using Cut_Roll_Users.Core.MovieLikes.Models;
 using Cut_Roll_Users.Core.ReviewLikes.Models;
 using Cut_Roll_Users.Core.Reviews.Models;
+using Cut_Roll_Users.Core.WantToWatchFilms.Models;
 using Cut_Roll_Users.Core.WatchedMovies.Models;
 
 namespace Cut_Roll_Users.Core.Users.Models;
@@ -28,6 +29,7 @@ public class User : IBanable, IMuteable
     public ICollection<Review> Reviews { get; set; } = [];
     public ICollection<ReviewLike> ReviewLikes { get; set; } = [];
     public ICollection<MovieLike> MovieLikes { get; set; } = [];
+    public ICollection<WantToWatchFilm> WantToWatchFilms { get; set; } = [];
     public ICollection<WatchedMovie> Watched { get; set; } = [];
     public ICollection<ListEntity> Lists { get; set; } = [];
     public ICollection<ListLike> ListLikes { get; set; } = [];

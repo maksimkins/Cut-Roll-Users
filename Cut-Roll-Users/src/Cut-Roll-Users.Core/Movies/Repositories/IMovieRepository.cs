@@ -13,7 +13,9 @@ IUpdateAsync<MovieUpdateDto, Guid?>, IDeleteByIdAsync<Guid, Guid?>, ICreateAsync
     Task<int> GetMovieReviewCountAsync(Guid movieId);
     Task<int> GetMovieWatchedCountAsync(Guid movieId);
     Task<int> GetMovieLikeCountAsync(Guid movieId);
+    Task<int> GetMovieWantToWatchCountAsync(Guid movieId);
     Task<double> GetMovieAverageRatingAsync(Guid movieId);
     Task<bool> IsMovieWatchedByUserAsync(Guid movieId, string userId);
     Task<bool> IsMovieLikedByUserAsync(Guid movieId, string userId);
+    Task<bool> IsMovieInUserWantToWatchAsync(Guid movieId, string userId);
 }

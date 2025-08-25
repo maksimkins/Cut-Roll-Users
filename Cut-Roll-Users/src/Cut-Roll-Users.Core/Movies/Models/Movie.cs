@@ -6,6 +6,7 @@ using Cut_Roll_Users.Core.MovieImages.Models;
 using Cut_Roll_Users.Core.MovieKeywords.Models;
 using Cut_Roll_Users.Core.MovieLikes.Models;
 using Cut_Roll_Users.Core.MovieOriginCountries.Models;
+using Cut_Roll_Users.Core.WantToWatchFilms.Models;
 using Cut_Roll_Users.Core.MovieProductionCompanies.Models;
 using Cut_Roll_Users.Core.MovieProductionCountries.Models;
 using Cut_Roll_Users.Core.MovieSpokenLanguages.Models;
@@ -63,6 +64,7 @@ public class Movie
     public ICollection<MovieImage> Images { get; set; } = [];
     public ICollection<Review> Reviews { get; set; } = [];
     public ICollection<MovieLike> MovieLikes { get; set; } = [];
+    public ICollection<WantToWatchFilm> WantToWatchFilms { get; set; } = [];
     public ICollection<WatchedMovie> Watched { get; set; } = [];
     public ICollection<ListMovie> ListMovies { get; set; } = [];
 }

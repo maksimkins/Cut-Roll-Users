@@ -22,6 +22,7 @@ public interface IUserService
     Task<int> GetUserReviewCountAsync(string? userId);
     Task<int> GetUserWatchedCountAsync(string? userId);
     Task<int> GetUserMovieLikeCountAsync(string? userId);
+    Task<int> GetUserWantToWatchCountAsync(string? userId);
     Task<int> GetUserListCountAsync(string? userId);
     Task<double> GetUserAverageRatingAsync(string? userId);
 }
