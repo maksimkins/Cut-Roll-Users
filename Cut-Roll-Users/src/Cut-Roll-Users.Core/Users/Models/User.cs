@@ -3,6 +3,7 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using Cut_Roll_Users.Core.Common.Models.Base;
+using Cut_Roll_Users.Core.Follows.Models;
 using Cut_Roll_Users.Core.ListEntities.Models;
 using Cut_Roll_Users.Core.ListLikes.Models;
 using Cut_Roll_Users.Core.MovieLikes.Models;
@@ -33,4 +34,8 @@ public class User : IBanable, IMuteable
     public ICollection<WatchedMovie> Watched { get; set; } = [];
     public ICollection<ListEntity> Lists { get; set; } = [];
     public ICollection<ListLike> ListLikes { get; set; } = [];
+    
+    // Follow relationships
+    public ICollection<Follow> Followers { get; set; } = [];
+    public ICollection<Follow> Following { get; set; } = [];
 }

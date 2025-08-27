@@ -6,9 +6,10 @@ namespace Cut_Roll_Users.Core.WantToWatchFilms.Services;
 
 public interface IWantToWatchFilmService
 {
-    Task<bool> AddToWantToWatchAsync(WantToWatchFilmDto? wantToWatchDto);
-    Task<bool> RemoveFromWantToWatchAsync(WantToWatchFilmDto? wantToWatchDto);
+    Task<Guid> AddToWantToWatchAsync(WantToWatchFilmDto? wantToWatchDto);
+    Task<Guid> RemoveFromWantToWatchAsync(WantToWatchFilmDto? wantToWatchDto);
     Task<PagedResult<MovieSimplifiedDto>> GetWantToWatchMoviesAsync(WantToWatchFilmPaginationUserDto? paginationDto);
     Task<bool> IsMovieInWantToWatchAsync(string? userId, Guid? movieId);
     Task<int> GetWantToWatchCountByUserIdAsync(string? userId);
 }
+

@@ -7,8 +7,8 @@ using Cut_Roll_Users.Core.Reviews.Models;
 namespace Cut_Roll_Users.Core.ReviewLikes.Repositories;
 
 public interface IReviewLikeRepository :
-    ICreateAsync<ReviewLikeDto, Guid>,
-    IDeleteAsync<ReviewLikeDto, Guid>
+    ICreateAsync<ReviewLikeDto, Guid?>,
+    IDeleteAsync<ReviewLikeDto, Guid?>
 {
     Task<bool> IsLikedByUserAsync(string userId, Guid reviewId);
     Task<int> GetLikeCountByReviewIdAsync(Guid reviewId);
