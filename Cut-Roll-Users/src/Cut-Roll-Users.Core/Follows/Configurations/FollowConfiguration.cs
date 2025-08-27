@@ -35,7 +35,7 @@ public class FollowConfiguration : IEntityTypeConfiguration<Follow>
             .OnDelete(DeleteBehavior.Restrict)
             .IsRequired();
 
-        builder.ToTable(t => t.HasCheckConstraint("CK_Follow_SelfFollow", "followerid != followingid"));
+        builder.ToTable(t => t.HasCheckConstraint("CK_Follow_SelfFollow", "\"FollowerId\" != \"FollowingId\""));
 
         builder.HasIndex(f => f.FollowerId);
         builder.HasIndex(f => f.FollowingId);

@@ -156,7 +156,7 @@ namespace Cut_Roll_Users.Infrastructure.Migrations
 
                     b.ToTable("follows", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Follow_SelfFollow", "followerid != followingid");
+                            t.HasCheckConstraint("CK_Follow_SelfFollow", "\"FollowerId\" != \"FollowingId\"");
                         });
                 });
 

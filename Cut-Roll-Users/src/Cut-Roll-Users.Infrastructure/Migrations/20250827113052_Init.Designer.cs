@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Cut_Roll_Users.Infrastructure.Migrations
 {
     [DbContext(typeof(UsersDbContext))]
-    [Migration("20250827111000_Init")]
+    [Migration("20250827113052_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -159,7 +159,7 @@ namespace Cut_Roll_Users.Infrastructure.Migrations
 
                     b.ToTable("follows", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Follow_SelfFollow", "followerid != followingid");
+                            t.HasCheckConstraint("CK_Follow_SelfFollow", "\"FollowerId\" != \"FollowingId\"");
                         });
                 });
 

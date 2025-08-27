@@ -371,7 +371,7 @@ namespace Cut_Roll_Users.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_follows", x => new { x.FollowerId, x.FollowingId });
-                    table.CheckConstraint("CK_Follow_SelfFollow", "followerid != followingid");
+                    table.CheckConstraint("CK_Follow_SelfFollow", "\"FollowerId\" != \"FollowingId\"");
                     table.ForeignKey(
                         name: "FK_follows_users_FollowerId",
                         column: x => x.FollowerId,
