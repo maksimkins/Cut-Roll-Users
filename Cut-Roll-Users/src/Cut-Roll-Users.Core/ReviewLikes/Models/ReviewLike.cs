@@ -10,7 +10,6 @@ public class ReviewLike
 
     public DateTime LikedAt { get; set; } = DateTime.UtcNow;
 
-    // Navigation
     public User User { get; set; } = null!;
     public Review Review { get; set; } = null!;
 }

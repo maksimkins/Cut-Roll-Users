@@ -25,10 +25,10 @@ public class WatchedMovieService : IWatchedMovieService
         if (watchedMovieDto.MovieId == Guid.Empty)
             throw new ArgumentException("Movie ID cannot be empty.", nameof(watchedMovieDto.MovieId));
 
-        // Check if already watched
+        
         var isAlreadyWatched = await _watchedMovieRepository.IsMovieWatchedByUserAsync(watchedMovieDto.UserId, watchedMovieDto.MovieId);
         if (isAlreadyWatched)
-            return watchedMovieDto.MovieId; // Already watched, return success
+            return watchedMovieDto.MovieId; 
 
         var result = await _watchedMovieRepository.CreateAsync(watchedMovieDto);
         return result ?? throw new InvalidOperationException("Failed to mark movie as watched.");
@@ -45,10 +45,10 @@ public class WatchedMovieService : IWatchedMovieService
         if (watchedMovieDto.MovieId == Guid.Empty)
             throw new ArgumentException("Movie ID cannot be empty.", nameof(watchedMovieDto.MovieId));
 
-        // Check if not watched
+        
         var isWatched = await _watchedMovieRepository.IsMovieWatchedByUserAsync(watchedMovieDto.UserId, watchedMovieDto.MovieId);
         if (!isWatched)
-            return watchedMovieDto.MovieId; // Not watched, return success
+            return watchedMovieDto.MovieId; 
 
         var result = await _watchedMovieRepository.DeleteAsync(watchedMovieDto);
         if (result == null)

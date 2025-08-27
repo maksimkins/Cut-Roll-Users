@@ -35,7 +35,6 @@ public class User : IBanable, IMuteable
     public ICollection<ListEntity> Lists { get; set; } = [];
     public ICollection<ListLike> ListLikes { get; set; } = [];
     
-    // Follow relationships
     public ICollection<Follow> Followers { get; set; } = [];
     public ICollection<Follow> Following { get; set; } = [];
 }

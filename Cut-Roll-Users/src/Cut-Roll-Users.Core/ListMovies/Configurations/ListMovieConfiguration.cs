@@ -17,7 +17,6 @@ public class ListMovieConfiguration : IEntityTypeConfiguration<ListMovie>
         builder.Property(lm => lm.MovieId)
             .IsRequired();
 
-        // Relationships
         builder.HasOne(lm => lm.List)
             .WithMany(l => l.Movies)
             .HasForeignKey(lm => lm.ListId)

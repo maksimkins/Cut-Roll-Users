@@ -32,20 +32,6 @@ public class FollowController : ControllerBase
         catch (Exception ex) { return this.InternalServerError(ex.Message); }
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetById([FromRoute] Guid? id)
-    {
-        try
-        {
-            var result = await _followService.GetFollowByIdAsync(id);
-            return result is not null ? Ok(result) : NotFound("Follow not found.");
-        }
-        catch (ArgumentNullException ex) { return BadRequest(ex.Message); }
-        catch (ArgumentException ex) { return NotFound(ex.Message); }
-        catch (InvalidOperationException ex) { return Conflict(ex.Message); }
-        catch (Exception ex) { return this.InternalServerError(ex.Message); }
-    }
-
     [Authorize]
     [HttpDelete]
     public async Task<IActionResult> Delete([FromBody] FollowDeleteDto? dto)

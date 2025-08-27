@@ -34,11 +34,9 @@ public class ReviewConfiguration : IEntityTypeConfiguration<Review>
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
 
-        // Unique constraint to ensure one review per user per movie
         builder.HasIndex(r => new { r.UserId, r.MovieId })
             .IsUnique();
 
-        // Relationships
         builder.HasOne(r => r.User)
             .WithMany()
             .HasForeignKey(r => r.UserId)

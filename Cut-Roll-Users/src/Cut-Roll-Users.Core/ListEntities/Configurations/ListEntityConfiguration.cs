@@ -29,7 +29,6 @@ public class ListEntityConfiguration : IEntityTypeConfiguration<ListEntity>
             .IsRequired()
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-        // Relationships
         builder.HasOne(l => l.User)
             .WithMany()
             .HasForeignKey(l => l.UserId)

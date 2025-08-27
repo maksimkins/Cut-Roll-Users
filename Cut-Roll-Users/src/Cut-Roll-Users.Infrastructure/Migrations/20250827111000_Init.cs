@@ -11,9 +11,7 @@ namespace Cut_Roll_Users.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-
             migrationBuilder.Sql("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";");
-
             migrationBuilder.CreateTable(
                 name: "countries",
                 columns: table => new
@@ -363,26 +361,25 @@ namespace Cut_Roll_Users.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Follows",
+                name: "follows",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    FollowerId = table.Column<string>(type: "character varying(450)", nullable: false),
-                    FollowingId = table.Column<string>(type: "character varying(450)", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    FollowerId = table.Column<string>(type: "character varying(450)", maxLength: 450, nullable: false),
+                    FollowingId = table.Column<string>(type: "character varying(450)", maxLength: 450, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Follows", x => x.Id);
-                    table.CheckConstraint("CK_Follow_SelfFollow", "FollowerId != FollowingId");
+                    table.PrimaryKey("PK_follows", x => new { x.FollowerId, x.FollowingId });
+                    table.CheckConstraint("CK_Follow_SelfFollow", "followerid != followingid");
                     table.ForeignKey(
-                        name: "FK_Follows_users_FollowerId",
+                        name: "FK_follows_users_FollowerId",
                         column: x => x.FollowerId,
                         principalTable: "users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_Follows_users_FollowingId",
+                        name: "FK_follows_users_FollowingId",
                         column: x => x.FollowingId,
                         principalTable: "users",
                         principalColumn: "Id",
@@ -498,7 +495,7 @@ namespace Cut_Roll_Users.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_watched_movies", x => new { x.MovieId, x.UserId });
+                    table.PrimaryKey("PK_watched_movies", x => new { x.UserId, x.MovieId });
                     table.ForeignKey(
                         name: "FK_watched_movies_movies_MovieId",
                         column: x => x.MovieId,
@@ -663,24 +660,18 @@ namespace Cut_Roll_Users.Infrastructure.Migrations
                 column: "PersonId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Follows_CreatedAt",
-                table: "Follows",
+                name: "IX_follows_CreatedAt",
+                table: "follows",
                 column: "CreatedAt");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Follows_FollowerId",
-                table: "Follows",
+                name: "IX_follows_FollowerId",
+                table: "follows",
                 column: "FollowerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Follows_FollowerId_FollowingId",
-                table: "Follows",
-                columns: new[] { "FollowerId", "FollowingId" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Follows_FollowingId",
-                table: "Follows",
+                name: "IX_follows_FollowingId",
+                table: "follows",
                 column: "FollowingId");
 
             migrationBuilder.CreateIndex(
@@ -782,15 +773,14 @@ namespace Cut_Roll_Users.Infrastructure.Migrations
                 column: "MovieId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_watched_movies_UserId_MovieId",
+                name: "IX_watched_movies_MovieId",
                 table: "watched_movies",
-                columns: new[] { "UserId", "MovieId" },
-                unique: true);
+                column: "MovieId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
-        {   
+        {
             migrationBuilder.Sql("DROP EXTENSION IF EXISTS \"pgcrypto\";");
             migrationBuilder.DropTable(
                 name: "cast");
@@ -805,7 +795,7 @@ namespace Cut_Roll_Users.Infrastructure.Migrations
                 name: "ExecutedScripts");
 
             migrationBuilder.DropTable(
-                name: "Follows");
+                name: "follows");
 
             migrationBuilder.DropTable(
                 name: "list_likes");

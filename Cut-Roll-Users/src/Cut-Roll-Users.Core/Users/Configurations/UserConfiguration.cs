@@ -38,7 +38,6 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired()
             .HasDefaultValue(false);
 
-        // Relationships
         builder.HasMany(u => u.Reviews)
             .WithOne(r => r.User)
             .HasForeignKey(r => r.UserId)
@@ -73,5 +72,15 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .WithOne(ll => ll.User)
             .HasForeignKey(ll => ll.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(u => u.Followers)
+            .WithOne(f => f.Following)
+            .HasForeignKey(f => f.FollowingId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(u => u.Following)
+            .WithOne(f => f.Follower)
+            .HasForeignKey(f => f.FollowerId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

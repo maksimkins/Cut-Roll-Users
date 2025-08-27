@@ -9,7 +9,6 @@ public class WantToWatchFilm
     public required Guid MovieId { get; set; }
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
 
-    // Navigation
     public User User { get; set; } = null!;
     public Movie Movie { get; set; } = null!;
 }

@@ -26,7 +26,6 @@ public class CommentConfiguration : IEntityTypeConfiguration<Comment>
             .IsRequired()
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-        // Relationships
         builder.HasOne(c => c.User)
             .WithMany()
             .HasForeignKey(c => c.UserId)

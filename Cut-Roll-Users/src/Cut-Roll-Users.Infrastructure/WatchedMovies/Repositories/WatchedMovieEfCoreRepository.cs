@@ -129,7 +129,7 @@ public class WatchedMovieEfCoreRepository : IWatchedMovieRepository
                 .ThenInclude(m => m.Images)
             .AsQueryable();
 
-        // Apply filters
+        
         if (request.FromDate.HasValue)
         {
             query = query.Where(w => w.WatchedAt >= request.FromDate.Value);

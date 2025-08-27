@@ -22,7 +22,6 @@ public class WantToWatchFilmConfiguration : IEntityTypeConfiguration<WantToWatch
             .IsRequired()
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-        // Relationships
         builder.HasOne(wtw => wtw.User)
             .WithMany()
             .HasForeignKey(wtw => wtw.UserId)

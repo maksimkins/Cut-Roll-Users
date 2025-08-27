@@ -6,9 +6,7 @@ using Cut_Roll_Users.Core.Follows.Models;
 namespace Cut_Roll_Users.Core.Follows.Repositories;
 
 public interface IFollowRepository :
-    ICreateAsync<FollowCreateDto, Guid?>,
-    IGetByIdAsync<Guid, FollowResponseDto?>,
-    IDeleteByIdAsync<Guid, string?>
+    ICreateAsync<FollowCreateDto, string?>
 {
     Task<bool> FollowExistsAsync(string followerId, string followingId);
     Task<string?> DeleteFollowAsync(FollowDeleteDto dto);

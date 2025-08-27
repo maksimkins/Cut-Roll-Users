@@ -22,7 +22,6 @@ public class MovieLikeConfiguration : IEntityTypeConfiguration<MovieLike>
             .IsRequired()
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-        // Relationships
         builder.HasOne(ml => ml.User)
             .WithMany()
             .HasForeignKey(ml => ml.UserId)

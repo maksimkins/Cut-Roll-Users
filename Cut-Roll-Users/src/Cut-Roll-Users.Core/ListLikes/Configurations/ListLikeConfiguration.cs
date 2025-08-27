@@ -22,7 +22,6 @@ public class ListLikeConfiguration : IEntityTypeConfiguration<ListLike>
             .IsRequired()
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-        // Relationships
         builder.HasOne(ll => ll.User)
             .WithMany()
             .HasForeignKey(ll => ll.UserId)

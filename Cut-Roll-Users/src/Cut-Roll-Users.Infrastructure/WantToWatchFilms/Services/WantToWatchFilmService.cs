@@ -26,10 +26,10 @@ public class WantToWatchFilmService : IWantToWatchFilmService
         if (wantToWatchDto.MovieId == Guid.Empty)
             throw new ArgumentException("Movie ID cannot be empty.", nameof(wantToWatchDto.MovieId));
 
-        // Check if already in want to watch
+      
         var isAlreadyInWantToWatch = await _wantToWatchFilmRepository.IsInWantToWatchAsync(wantToWatchDto);
         if (isAlreadyInWantToWatch)
-            return wantToWatchDto.MovieId; // Already in want to watch, return success
+            return wantToWatchDto.MovieId; 
 
         var result = await _wantToWatchFilmRepository.CreateAsync(wantToWatchDto);
         return result ?? throw new InvalidOperationException("Failed to add movie to want to watch.");
@@ -46,10 +46,10 @@ public class WantToWatchFilmService : IWantToWatchFilmService
         if (wantToWatchDto.MovieId == Guid.Empty)
             throw new ArgumentException("Movie ID cannot be empty.", nameof(wantToWatchDto.MovieId));
 
-        // Check if not in want to watch
+        
         var isInWantToWatch = await _wantToWatchFilmRepository.IsInWantToWatchAsync(wantToWatchDto);
         if (!isInWantToWatch)
-            return wantToWatchDto.MovieId; // Not in want to watch, return success
+            return wantToWatchDto.MovieId;
 
         var result = await _wantToWatchFilmRepository.DeleteAsync(wantToWatchDto);
         if (result == null)

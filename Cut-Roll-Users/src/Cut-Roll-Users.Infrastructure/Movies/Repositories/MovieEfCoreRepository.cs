@@ -152,7 +152,7 @@ public class MovieEfCoreRepository : IMovieRepository
 
     public async Task<Movie?> GetByIdAsync(Guid id)
     {
-        return await _context.Movies
+        var movie = await _context.Movies
             .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
             .Include(m => m.Cast).ThenInclude(c => c.Person)
             .Include(m => m.Crew).ThenInclude(c => c.Person)
@@ -166,6 +166,14 @@ public class MovieEfCoreRepository : IMovieRepository
             .Include(m => m.Keywords).ThenInclude(k => k.Keyword)
             .AsSplitQuery()
             .FirstOrDefaultAsync(m => m.Id == id);
+
+        if (movie != null)
+            movie.RatingAverage = await _context.Reviews
+            .Where(r => r.MovieId == id)
+            .Select(r => (float?)r.Rating)
+            .AverageAsync() ?? 0;
+
+        return movie;
     }
 
     public async Task<int> CountAsync()

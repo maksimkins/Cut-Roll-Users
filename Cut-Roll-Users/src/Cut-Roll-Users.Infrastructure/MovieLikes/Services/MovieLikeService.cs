@@ -26,10 +26,10 @@ public class MovieLikeService : IMovieLikeService
         if (likeDto.MovieId == Guid.Empty)
             throw new ArgumentException("Movie ID cannot be empty.", nameof(likeDto.MovieId));
 
-        // Check if already liked
+        
         var isAlreadyLiked = await _movieLikeRepository.IsLikedByUserAsync(likeDto.UserId, likeDto.MovieId);
         if (isAlreadyLiked)
-            return likeDto.MovieId; // Already liked, return success
+            return likeDto.MovieId; 
 
         var result = await _movieLikeRepository.CreateAsync(likeDto);
         return result ?? throw new InvalidOperationException("Failed to create movie like.");
@@ -46,10 +46,10 @@ public class MovieLikeService : IMovieLikeService
         if (likeDto.MovieId == Guid.Empty)
             throw new ArgumentException("Movie ID cannot be empty.", nameof(likeDto.MovieId));
 
-        // Check if not liked
+        
         var isLiked = await _movieLikeRepository.IsLikedByUserAsync(likeDto.UserId, likeDto.MovieId);
         if (!isLiked)
-            return likeDto.MovieId; // Not liked, return success
+            return likeDto.MovieId; 
 
         var result = await _movieLikeRepository.DeleteAsync(likeDto);
         if (result == null)

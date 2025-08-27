@@ -22,7 +22,6 @@ public class ReviewLikeConfiguration : IEntityTypeConfiguration<ReviewLike>
             .IsRequired()
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-        // Relationships
         builder.HasOne(rl => rl.User)
             .WithMany()
             .HasForeignKey(rl => rl.UserId)

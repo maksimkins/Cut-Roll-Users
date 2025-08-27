@@ -9,8 +9,7 @@ public class WatchedMovieConfiguration : IEntityTypeConfiguration<WatchedMovie>
     public void Configure(EntityTypeBuilder<WatchedMovie> builder)
     {
         builder.ToTable("watched_movies")
-            .HasKey(wm => new {wm.MovieId, wm.UserId});
-
+            .HasKey(wm => new { wm.UserId, wm.MovieId });
 
         builder.Property(wm => wm.UserId)
             .IsRequired()
@@ -23,11 +22,6 @@ public class WatchedMovieConfiguration : IEntityTypeConfiguration<WatchedMovie>
             .IsRequired()
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-        // Unique constraint to prevent duplicate watched movies per user
-        builder.HasIndex(wm => new { wm.UserId, wm.MovieId })
-            .IsUnique();
-
-        // Relationships
         builder.HasOne(wm => wm.User)
             .WithMany()
             .HasForeignKey(wm => wm.UserId)

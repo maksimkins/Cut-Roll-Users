@@ -100,7 +100,6 @@ public class UserController : ControllerBase
         catch (Exception ex) { return this.InternalServerError(ex.Message); }
     }
 
-    // User activity methods
     [HttpGet("review-count/{userId}")]
     public async Task<IActionResult> GetUserReviewCount([FromRoute] string? userId)
     {

@@ -168,7 +168,6 @@ public static class RegisterDependencyInjectionMethod
         serviceCollection.AddTransient<IMovieProductionCountryService, MovieProductionCountryService>();
         serviceCollection.AddTransient<IMovieSpokenLanguageService, MovieSpokenLanguageService>();
         
-        // Add missing services
         serviceCollection.AddTransient<IListLikeService, ListLikeService>();
         serviceCollection.AddTransient<IListEntityService, ListEntityService>();
         serviceCollection.AddTransient<IListMovieService, ListMovieService>();

@@ -10,7 +10,6 @@ public class ListLike
     public Guid ListId { get; set; }            
     public DateTime LikedAt { get; set; } = DateTime.UtcNow;
 
-    // Navigation
     public User User { get; set; } = null!;
     public ListEntity List { get; set; } = null!;
 }

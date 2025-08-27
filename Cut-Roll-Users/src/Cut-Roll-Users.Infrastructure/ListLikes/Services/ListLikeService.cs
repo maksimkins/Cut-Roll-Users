@@ -24,10 +24,10 @@ public class ListLikeService : IListLikeService
         if (likeDto.ListId == Guid.Empty)
             throw new ArgumentException("List ID cannot be empty.", nameof(likeDto.ListId));
 
-        // Check if already liked
+        
         var isAlreadyLiked = await _listLikeRepository.IsLikedByUserAsync(likeDto.UserId, likeDto.ListId);
         if (isAlreadyLiked)
-            return likeDto.ListId; // Already liked, return success
+            return likeDto.ListId; 
 
         var result = await _listLikeRepository.CreateAsync(likeDto);
         return result ?? throw new InvalidOperationException("Failed to create list like.");
@@ -44,10 +44,10 @@ public class ListLikeService : IListLikeService
         if (likeDto.ListId == Guid.Empty)
             throw new ArgumentException("List ID cannot be empty.", nameof(likeDto.ListId));
 
-        // Check if not liked
+  
         var isLiked = await _listLikeRepository.IsLikedByUserAsync(likeDto.UserId, likeDto.ListId);
         if (!isLiked)
-            return likeDto.ListId; // Not liked, return success
+            return likeDto.ListId; 
 
         var result = await _listLikeRepository.DeleteAsync(likeDto);
         if (result == null)

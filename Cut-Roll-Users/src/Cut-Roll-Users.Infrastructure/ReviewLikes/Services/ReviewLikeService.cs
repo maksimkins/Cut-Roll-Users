@@ -27,10 +27,10 @@ public class ReviewLikeService : IReviewLikeService
         if (likeDto.ReviewId == Guid.Empty)
             throw new ArgumentException("Review ID cannot be empty.", nameof(likeDto.ReviewId));
 
-        // Check if already liked
+        
         var isAlreadyLiked = await _reviewLikeRepository.IsLikedByUserAsync(likeDto.UserId, likeDto.ReviewId);
         if (isAlreadyLiked)
-            return likeDto.ReviewId; // Already liked, return success
+            return likeDto.ReviewId; 
 
         var result = await _reviewLikeRepository.CreateAsync(likeDto);
         return result ?? throw new InvalidOperationException("Failed to create review like.");
@@ -47,10 +47,10 @@ public class ReviewLikeService : IReviewLikeService
         if (likeDto.ReviewId == Guid.Empty)
             throw new ArgumentException("Review ID cannot be empty.", nameof(likeDto.ReviewId));
 
-        // Check if not liked
+        
         var isLiked = await _reviewLikeRepository.IsLikedByUserAsync(likeDto.UserId, likeDto.ReviewId);
         if (!isLiked)
-            return likeDto.ReviewId; // Not liked, return success
+            return likeDto.ReviewId; 
 
         var result = await _reviewLikeRepository.DeleteAsync(likeDto);
         if (result == null)

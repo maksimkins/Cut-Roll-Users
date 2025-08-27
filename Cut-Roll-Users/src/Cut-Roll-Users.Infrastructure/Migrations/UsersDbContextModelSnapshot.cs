@@ -133,22 +133,20 @@ namespace Cut_Roll_Users.Infrastructure.Migrations
 
             modelBuilder.Entity("Cut_Roll_Users.Core.Follows.Models.Follow", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("FollowerId")
-                        .IsRequired()
+                        .HasMaxLength(450)
                         .HasColumnType("character varying(450)");
 
                     b.Property<string>("FollowingId")
-                        .IsRequired()
+                        .HasMaxLength(450)
                         .HasColumnType("character varying(450)");
 
-                    b.HasKey("Id");
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("FollowerId", "FollowingId");
 
                     b.HasIndex("CreatedAt");
 
@@ -156,12 +154,9 @@ namespace Cut_Roll_Users.Infrastructure.Migrations
 
                     b.HasIndex("FollowingId");
 
-                    b.HasIndex("FollowerId", "FollowingId")
-                        .IsUnique();
-
-                    b.ToTable("Follows", t =>
+                    b.ToTable("follows", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Follow_SelfFollow", "FollowerId != FollowingId");
+                            t.HasCheckConstraint("CK_Follow_SelfFollow", "followerid != followingid");
                         });
                 });
 
@@ -683,22 +678,21 @@ namespace Cut_Roll_Users.Infrastructure.Migrations
 
             modelBuilder.Entity("Cut_Roll_Users.Core.WatchedMovies.Models.WatchedMovie", b =>
                 {
-                    b.Property<Guid>("MovieId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("UserId")
                         .HasMaxLength(450)
                         .HasColumnType("character varying(450)");
+
+                    b.Property<Guid>("MovieId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("WatchedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                    b.HasKey("MovieId", "UserId");
+                    b.HasKey("UserId", "MovieId");
 
-                    b.HasIndex("UserId", "MovieId")
-                        .IsUnique();
+                    b.HasIndex("MovieId");
 
                     b.ToTable("watched_movies", (string)null);
                 });

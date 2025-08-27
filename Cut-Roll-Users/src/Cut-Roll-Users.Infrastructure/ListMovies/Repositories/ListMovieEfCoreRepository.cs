@@ -74,7 +74,7 @@ public class ListMovieEfCoreRepository : IListMovieRepository
             return result > 0;
         }
 
-        return true; // Nothing to delete
+        return true; 
     }
 
     public async Task<bool> IsMovieInListAsync(Guid listId, Guid movieId)

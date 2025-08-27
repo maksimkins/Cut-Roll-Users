@@ -58,7 +58,6 @@ public class MovieController : ControllerBase
         catch (Exception ex) { return this.InternalServerError(ex.Message); }
     }
 
-    // Movie activity methods
     [HttpGet("review-count/{movieId:guid}")]
     public async Task<IActionResult> GetMovieReviewCount([FromRoute] Guid? movieId)
     {

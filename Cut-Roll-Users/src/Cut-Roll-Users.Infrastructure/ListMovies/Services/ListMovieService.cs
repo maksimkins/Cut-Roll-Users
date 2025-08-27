@@ -24,10 +24,10 @@ public class ListMovieService : IListMovieService
         if (listMovieDto.MovieId == Guid.Empty)
             throw new ArgumentException("Movie ID cannot be empty.", nameof(listMovieDto.MovieId));
 
-        // Check if movie is already in the list
+     
         var isAlreadyInList = await _listMovieRepository.IsMovieInListAsync(listMovieDto.ListId, listMovieDto.MovieId);
         if (isAlreadyInList)
-            return listMovieDto.ListId; // Already in list, return success
+            return listMovieDto.ListId; 
 
         var result = await _listMovieRepository.CreateAsync(listMovieDto);
         return result ?? throw new InvalidOperationException("Failed to add movie to list.");
@@ -44,10 +44,10 @@ public class ListMovieService : IListMovieService
         if (listMovieDto.MovieId == Guid.Empty)
             throw new ArgumentException("Movie ID cannot be empty.", nameof(listMovieDto.MovieId));
 
-        // Check if movie is in the list
+        
         var isInList = await _listMovieRepository.IsMovieInListAsync(listMovieDto.ListId, listMovieDto.MovieId);
         if (!isInList)
-            return listMovieDto.ListId; // Not in list, return success
+            return listMovieDto.ListId; 
 
         var result = await _listMovieRepository.DeleteAsync(listMovieDto);
         if (result == null)
@@ -62,9 +62,9 @@ public class ListMovieService : IListMovieService
             throw new ArgumentNullException(nameof(toCreate), "Bulk create data cannot be null.");
 
         if (!toCreate.Any())
-            return true; // Nothing to create
+            return true; 
 
-        // Validate all items
+        
         foreach (var item in toCreate)
         {
             if (item.ListId == Guid.Empty)
@@ -83,9 +83,9 @@ public class ListMovieService : IListMovieService
             throw new ArgumentNullException(nameof(toDelete), "Bulk delete data cannot be null.");
 
         if (!toDelete.Any())
-            return true; // Nothing to delete
+            return true;
 
-        // Validate all items
+        
         foreach (var item in toDelete)
         {
             if (item.ListId == Guid.Empty)

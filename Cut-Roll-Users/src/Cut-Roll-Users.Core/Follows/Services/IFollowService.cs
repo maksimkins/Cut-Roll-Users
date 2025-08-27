@@ -5,8 +5,7 @@ namespace Cut_Roll_Users.Core.Follows.Services;
 
 public interface IFollowService
 {
-    Task<Guid> CreateFollowAsync(FollowCreateDto? dto);
-    Task<FollowResponseDto?> GetFollowByIdAsync(Guid? id);
+    Task<string> CreateFollowAsync(FollowCreateDto? dto);
     Task<string> DeleteFollowAsync(FollowDeleteDto? dto);
     Task<string> UnfollowUserAsync(string? followerId, string? followingId);
     Task<PagedResult<FollowResponseDto>> GetUserFollowsAsync(FollowPaginationDto? dto);

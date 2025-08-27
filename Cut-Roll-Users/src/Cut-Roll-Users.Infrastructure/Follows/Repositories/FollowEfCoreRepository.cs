@@ -4,6 +4,10 @@ using Cut_Roll_Users.Core.Follows.Dtos;
 using Cut_Roll_Users.Core.Follows.Models;
 using Cut_Roll_Users.Core.Follows.Repositories;
 using Cut_Roll_Users.Core.Users.Dtos;
+using Cut_Roll_Users.Core.Movies.Dtos;
+using Cut_Roll_Users.Core.Reviews.Dtos;
+using Cut_Roll_Users.Core.ListEntities.Dtos;
+using Cut_Roll_Users.Core.MovieImages.Enums;
 using Cut_Roll_Users.Infrastructure.Common.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,7 +22,7 @@ public class FollowEfCoreRepository : IFollowRepository
         _context = context;
     }
 
-    public async Task<Guid?> CreateAsync(FollowCreateDto entity)
+    public async Task<string?> CreateAsync(FollowCreateDto entity)
     {
         var follow = new Follow
         {
@@ -30,54 +34,8 @@ public class FollowEfCoreRepository : IFollowRepository
         _context.Follows.Add(follow);
         var result = await _context.SaveChangesAsync();
         
-        return result > 0 ? follow.Id : null;
-    }
 
-    public async Task<FollowResponseDto?> GetByIdAsync(Guid id)
-    {
-        var follow = await _context.Follows
-            .Include(f => f.Follower)
-            .Include(f => f.Following)
-            .FirstOrDefaultAsync(f => f.Id == id);
-
-        if (follow == null) return null;
-
-        return new FollowResponseDto
-        {
-            Id = follow.Id,
-            Follower = new UserResponseDto
-            {
-                Id = follow.Follower.Id,
-                Username = follow.Follower.UserName,
-                Email = follow.Follower.Email,
-                AvatarPath = follow.Follower.AvatarPath,
-                IsBanned = follow.Follower.IsBanned,
-                IsMuted = follow.Follower.IsMuted
-            },
-            Following = new UserResponseDto
-            {
-                Id = follow.Following.Id,
-                Username = follow.Following.UserName,
-                Email = follow.Following.Email,
-                AvatarPath = follow.Following.AvatarPath,
-                IsBanned = follow.Following.IsBanned,
-                IsMuted = follow.Following.IsMuted
-            },
-            CreatedAt = follow.CreatedAt
-        };
-    }
-
-    public async Task<string?> DeleteByIdAsync(Guid id)
-    {
-        var follow = await _context.Follows
-            .FirstOrDefaultAsync(f => f.Id == id);
-        
-        if (follow == null) return null;
-
-        _context.Follows.Remove(follow);
-        var result = await _context.SaveChangesAsync();
-        
-        return result > 0 ? follow.FollowerId : null;
+        return result > 0 ? entity.FollowingId : null;
     }
 
     public async Task<bool> FollowExistsAsync(string followerId, string followingId)
@@ -105,14 +63,12 @@ public class FollowEfCoreRepository : IFollowRepository
 
         if (dto.Type == FollowType.Followers)
         {
-            // Get users who follow the specified user
             query = _context.Follows
                 .Include(f => f.Follower)
                 .Where(f => f.FollowingId == dto.UserId);
         }
         else
         {
-            // Get users that the specified user is following
             query = _context.Follows
                 .Include(f => f.Following)
                 .Where(f => f.FollowerId == dto.UserId);
@@ -128,8 +84,7 @@ public class FollowEfCoreRepository : IFollowRepository
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .Select(f => new FollowResponseDto
-            {
-                Id = f.Id,
+            { 
                 Follower = dto.Type == FollowType.Followers ? new UserResponseDto
                 {
                     Id = f.Follower.Id,
@@ -200,20 +155,267 @@ public class FollowEfCoreRepository : IFollowRepository
 
     public async Task<PagedResult<FeedActivityDto>> GetUserFeedAsync(FeedPaginationDto dto)
     {
-        // Get all users that the current user is following
+        
         var followingUserIds = await _context.Follows
             .Where(f => f.FollowerId == dto.UserId)
             .Select(f => f.FollowingId)
             .ToListAsync();
 
-        // Get activities from followed users (this would need to be expanded based on what activities you want to show)
-        // For now, returning empty result as the feed logic would depend on what activities you want to track
+        if (!followingUserIds.Any())
+        {
+            return new PagedResult<FeedActivityDto>
+            {
+                Data = new List<FeedActivityDto>(),
+                TotalCount = 0,
+                Page = dto.Page,
+                PageSize = dto.PageSize
+            };
+        }
+
+        var activities = new List<FeedActivityDto>();
+
+        if (!dto.FilterByType.HasValue || dto.FilterByType == ActivityType.MovieLike)
+        {
+            var movieLikes = await _context.MovieLikes
+                .Include(ml => ml.User)
+                .Include(ml => ml.Movie)
+                    .ThenInclude(m => m.Images)
+                .Where(ml => followingUserIds.Contains(ml.UserId))
+                .Where(ml => !dto.FromDate.HasValue || ml.LikedAt >= dto.FromDate.Value)
+                .Select(ml => new FeedActivityDto
+                {
+                    User = new UserSimlified
+                    {
+                        Id = ml.User.Id,
+                        UserName = ml.User.UserName,
+                        Email = ml.User.Email,
+                        AvatarPath = ml.User.AvatarPath
+                    },
+                    Type = ActivityType.MovieLike,
+                    Movie = new MovieSimplifiedDto
+                    {
+                        MovieId = ml.Movie.Id,
+                        Title = ml.Movie.Title,
+                        Poster = ml.Movie.Images.FirstOrDefault(i => i.Type == ImageTypes.poster.ToString())
+                    },
+                    CreatedAt = ml.LikedAt
+                })
+                .ToListAsync();
+            activities.AddRange(movieLikes);
+        }
+
+        if (!dto.FilterByType.HasValue || dto.FilterByType == ActivityType.MovieReview)
+        {
+            var movieReviews = await _context.Reviews
+                .Include(r => r.User)
+                .Include(r => r.Movie)
+                    .ThenInclude(m => m.Images)
+                .Where(r => followingUserIds.Contains(r.UserId))
+                .Where(r => !dto.FromDate.HasValue || r.CreatedAt >= dto.FromDate.Value)
+                .Select(r => new FeedActivityDto
+                {
+                    User = new UserSimlified
+                    {
+                        Id = r.User.Id,
+                        UserName = r.User.UserName,
+                        Email = r.User.Email,
+                        AvatarPath = r.User.AvatarPath
+                    },
+                    Type = ActivityType.MovieReview,
+                    Movie = new MovieSimplifiedDto
+                    {
+                        MovieId = r.Movie.Id,
+                        Title = r.Movie.Title,
+                        Poster = r.Movie.Images.FirstOrDefault(i => i.Type == ImageTypes.poster.ToString())
+                    },
+                    Review = new ReviewSimplifiedDto
+                    {
+                        Id = r.Id,
+                        Content = r.Content,
+                        Rating = (int)r.Rating,
+                        CreatedAt = r.CreatedAt
+                    },
+                    CreatedAt = r.CreatedAt
+                })
+                .ToListAsync();
+            activities.AddRange(movieReviews);
+        }
+
+        if (!dto.FilterByType.HasValue || dto.FilterByType == ActivityType.MovieWatched)
+        {
+            var watchedMovies = await _context.WatchedMovies
+                .Include(w => w.User)
+                .Include(w => w.Movie)
+                    .ThenInclude(m => m.Images)
+                .Where(w => followingUserIds.Contains(w.UserId))
+                .Where(w => !dto.FromDate.HasValue || w.WatchedAt >= dto.FromDate.Value)
+                .Select(w => new FeedActivityDto
+                {
+                    User = new UserSimlified
+                    {
+                        Id = w.User.Id,
+                        UserName = w.User.UserName,
+                        Email = w.User.Email,
+                        AvatarPath = w.User.AvatarPath
+                    },
+                    Type = ActivityType.MovieWatched,
+                    Movie = new MovieSimplifiedDto
+                    {
+                        MovieId = w.Movie.Id,
+                        Title = w.Movie.Title,
+                        Poster = w.Movie.Images.FirstOrDefault(i => i.Type == ImageTypes.poster.ToString())
+                    },
+                    CreatedAt = w.WatchedAt
+                })
+                .ToListAsync();
+            activities.AddRange(watchedMovies);
+        }
+
+        if (!dto.FilterByType.HasValue || dto.FilterByType == ActivityType.WantToWatch)
+        {
+            var wantToWatchMovies = await _context.WantToWatchMovies
+                .Include(w => w.User)
+                .Include(w => w.Movie)
+                    .ThenInclude(m => m.Images)
+                .Where(w => followingUserIds.Contains(w.UserId))
+                .Where(w => !dto.FromDate.HasValue || w.AddedAt >= dto.FromDate.Value)
+                .Select(w => new FeedActivityDto
+                {
+                    User = new UserSimlified
+                    {
+                        Id = w.User.Id,
+                        UserName = w.User.UserName,
+                        Email = w.User.Email,
+                        AvatarPath = w.User.AvatarPath
+                    },
+                    Type = ActivityType.WantToWatch,
+                    Movie = new MovieSimplifiedDto
+                    {
+                        MovieId = w.Movie.Id,
+                        Title = w.Movie.Title,
+                        Poster = w.Movie.Images.FirstOrDefault(i => i.Type == ImageTypes.poster.ToString())
+                    },
+                    CreatedAt = w.AddedAt
+                })
+                .ToListAsync();
+            activities.AddRange(wantToWatchMovies);
+        }
+
+        if (!dto.FilterByType.HasValue || dto.FilterByType == ActivityType.ListCreated)
+        {
+            var listCreated = await _context.ListEntities
+                .Include(l => l.User)
+                .Where(l => followingUserIds.Contains(l.UserId))
+                .Where(l => !dto.FromDate.HasValue || l.CreatedAt >= dto.FromDate.Value)
+                .Select(l => new FeedActivityDto
+                {
+                    User = new UserSimlified
+                    {
+                        Id = l.User.Id,
+                        UserName = l.User.UserName,
+                        Email = l.User.Email,
+                        AvatarPath = l.User.AvatarPath
+                    },
+                    Type = ActivityType.ListCreated,
+                    List = new ListEntitySimplifiedDto
+                    {
+                        Id = l.Id,
+                        Title = l.Title,
+                        Description = l.Description,
+                        CreatedAt = l.CreatedAt
+                    },
+                    CreatedAt = l.CreatedAt
+                })
+                .ToListAsync();
+            activities.AddRange(listCreated);
+        }
+
+        if (!dto.FilterByType.HasValue || dto.FilterByType == ActivityType.ListLiked)
+        {
+            var listLiked = await _context.ListLikes
+                .Include(ll => ll.User)
+                .Include(ll => ll.List)
+                .Where(ll => followingUserIds.Contains(ll.UserId))
+                .Where(ll => !dto.FromDate.HasValue || ll.LikedAt >= dto.FromDate.Value)
+                .Select(ll => new FeedActivityDto
+                {
+                    User = new UserSimlified
+                    {
+                        Id = ll.User.Id,
+                        UserName = ll.User.UserName,
+                        Email = ll.User.Email,
+                        AvatarPath = ll.User.AvatarPath
+                    },
+                    Type = ActivityType.ListLiked,
+                    List = new ListEntitySimplifiedDto
+                    {
+                        Id = ll.List.Id,
+                        Title = ll.List.Title,
+                        Description = ll.List.Description,
+                        CreatedAt = ll.List.CreatedAt
+                    },
+                    CreatedAt = ll.LikedAt
+                })
+                .ToListAsync();
+            activities.AddRange(listLiked);
+        }
+
+        if (!dto.FilterByType.HasValue || dto.FilterByType == ActivityType.ReviewLiked)
+        {
+            var reviewLiked = await _context.ReviewLikes
+                .Include(rl => rl.User)
+                .Include(rl => rl.Review)
+                    .ThenInclude(r => r.Movie)
+                        .ThenInclude(m => m.Images)
+                .Where(rl => followingUserIds.Contains(rl.UserId))
+                .Where(rl => !dto.FromDate.HasValue || rl.LikedAt >= dto.FromDate.Value)
+                .Select(rl => new FeedActivityDto
+                {
+                    User = new UserSimlified
+                    {
+                        Id = rl.User.Id,
+                        UserName = rl.User.UserName,
+                        Email = rl.User.Email,
+                        AvatarPath = rl.User.AvatarPath
+                    },
+                    Type = ActivityType.ReviewLiked,
+                    Movie = new MovieSimplifiedDto
+                    {
+                        MovieId = rl.Review.Movie.Id,
+                        Title = rl.Review.Movie.Title,
+                        Poster = rl.Review.Movie.Images.FirstOrDefault(i => i.Type == ImageTypes.poster.ToString())
+                    },
+                    Review = new ReviewSimplifiedDto
+                    {
+                        Id = rl.Review.Id,
+                        Content = rl.Review.Content,
+                        Rating = (int)rl.Review.Rating,
+                        CreatedAt = rl.Review.CreatedAt
+                    },
+                    CreatedAt = rl.LikedAt
+                })
+                .ToListAsync();
+            activities.AddRange(reviewLiked);
+        }
+
+        // Sort all activities by creation date (newest first)
+        var sortedActivities = activities.OrderByDescending(a => a.CreatedAt).ToList();
+
+        var totalCount = sortedActivities.Count;
+        var pageNumber = dto.Page <= 0 ? 1 : dto.Page;
+        var pageSize = dto.PageSize <= 0 ? 20 : dto.PageSize;
+
+        var pagedActivities = sortedActivities
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
         return new PagedResult<FeedActivityDto>
         {
-            Data = new List<FeedActivityDto>(),
-            TotalCount = 0,
-            Page = dto.Page,
-            PageSize = dto.PageSize
+            Data = pagedActivities,
+            TotalCount = totalCount,
+            Page = pageNumber,
+            PageSize = pageSize
         };
     }
 

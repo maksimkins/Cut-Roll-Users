@@ -50,7 +50,6 @@ public class MovieConfiguration : IEntityTypeConfiguration<Movie>
 
 
 
-        // Relationships
         builder.HasMany(m => m.MovieGenres)
             .WithOne(mg => mg.Movie)
             .HasForeignKey(mg => mg.MovieId)

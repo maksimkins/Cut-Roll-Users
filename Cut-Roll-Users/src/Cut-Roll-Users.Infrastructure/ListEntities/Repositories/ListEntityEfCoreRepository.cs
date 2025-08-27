@@ -100,7 +100,6 @@ public class ListEntityEfCoreRepository : IListEntityRepository
             .Include(l => l.Likes)
             .AsQueryable();
 
-        // Apply filters
         if (!string.IsNullOrWhiteSpace(request.UserId))
         {
             query = query.Where(l => l.UserId == request.UserId);
