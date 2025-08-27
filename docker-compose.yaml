@@ -49,7 +49,7 @@ services:
     expose:
       - ${POSTGRES_PORT}
     ports:
-      - "5433:${POSTGRES_PORT}"
+      - "5436:${POSTGRES_PORT}"
     networks:
       - web
     volumes:
