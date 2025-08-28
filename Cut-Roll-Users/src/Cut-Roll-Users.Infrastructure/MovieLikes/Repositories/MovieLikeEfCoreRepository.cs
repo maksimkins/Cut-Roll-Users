@@ -19,7 +19,7 @@ public class MovieLikeEfCoreRepository : IMovieLikeRepository
         _context = context;
     }
 
-    public async Task<Guid?> CreateAsync(MovieLikeCreateDto entity)
+    public async Task<Guid?> CreateAsync(MovieLikeDto entity)
     {
         var movieLike = new MovieLike
         {
@@ -34,7 +34,7 @@ public class MovieLikeEfCoreRepository : IMovieLikeRepository
         return result > 0 ? entity.MovieId : null;
     }
 
-    public async Task<Guid?> DeleteAsync(MovieLikeCreateDto entity)
+    public async Task<Guid?> DeleteAsync(MovieLikeDto entity)
     {
         var movieLike = await _context.MovieLikes
             .FirstOrDefaultAsync(ml => ml.UserId == entity.UserId && ml.MovieId == entity.MovieId);
@@ -60,7 +60,7 @@ public class MovieLikeEfCoreRepository : IMovieLikeRepository
             .CountAsync();
     }
 
-    public async Task<PagedResult<MovieSimplifiedDto>> GetLikedMovies(MovieLikePaginationUserDto dto)
+    public async Task<PagedResult<MovieSimplifiedDto>> GetByUserIdAsync(MovieLikePaginationUserDto dto)
     {
         var query = _context.MovieLikes
             .Include(ml => ml.Movie)
@@ -92,4 +92,5 @@ public class MovieLikeEfCoreRepository : IMovieLikeRepository
             PageSize = pageSize
         };
     }
+
 }

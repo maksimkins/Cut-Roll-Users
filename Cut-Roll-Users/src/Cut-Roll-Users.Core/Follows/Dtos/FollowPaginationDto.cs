@@ -1,5 +1,3 @@
-using Cut_Roll_Users.Core.Common.Dtos;
-
 namespace Cut_Roll_Users.Core.Follows.Dtos;
 
 public class FollowPaginationDto

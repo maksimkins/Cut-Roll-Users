@@ -13,7 +13,6 @@ namespace Cut_Roll_Users.Core.ListEntities.Models
         public string? Description { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // Navigation
         public User User { get; set; } = null!;
         public ICollection<ListMovie> Movies { get; set; } = [];
         public ICollection<ListLike> Likes { get; set; } = [];

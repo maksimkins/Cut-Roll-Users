@@ -5,6 +5,7 @@ using Cut_Roll_Users.Core.WatchedMovies.Dtos;
 using Cut_Roll_Users.Core.WatchedMovies.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 [Route("[controller]")]
 [ApiController]
@@ -23,6 +24,10 @@ public class WatchedMovieController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            if (watchedMovieDto?.UserId != userId)
+                throw new ArgumentException("User ID in request does not match authenticated user ID.");
+            
             var result = await _watchedMovieService.MarkMovieAsWatchedAsync(watchedMovieDto);
             return Ok(result);
         }
@@ -34,11 +39,15 @@ public class WatchedMovieController : ControllerBase
 
     [Authorize]
     [HttpPost("remove-watched")]
-    public async Task<IActionResult> RemoveWatchedMovie([FromBody] WatchedMovieDto? watchedMovieDto)
+    public async Task<IActionResult> UnmarkMovieAsWatchedAsync([FromBody] WatchedMovieDto? watchedMovieDto)
     {
         try
         {
-            var result = await _watchedMovieService.RemoveWatchedMovieAsync(watchedMovieDto);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            if (watchedMovieDto?.UserId != userId)
+                throw new ArgumentException("User ID in request does not match authenticated user ID.");
+            
+            var result = await _watchedMovieService.UnmarkMovieAsWatchedAsync(watchedMovieDto);
             return Ok(result);
         }
         catch (ArgumentNullException ex) { return BadRequest(ex.Message); }
@@ -47,33 +56,6 @@ public class WatchedMovieController : ControllerBase
         catch (Exception ex) { return this.InternalServerError(ex.Message); }
     }
 
-    [HttpPost("search")]
-    public async Task<IActionResult> SearchWatchedMovies([FromBody] WatchedMovieSearchDto? searchDto)
-    {
-        try
-        {
-            var result = await _watchedMovieService.SearchWatchedMoviesAsync(searchDto);
-            return Ok(result);
-        }
-        catch (ArgumentNullException ex) { return BadRequest(ex.Message); }
-        catch (ArgumentException ex) { return NotFound(ex.Message); }
-        catch (InvalidOperationException ex) { return Conflict(ex.Message); }
-        catch (Exception ex) { return this.InternalServerError(ex.Message); }
-    }
-
-    [HttpGet("by-user-and-movie")]
-    public async Task<IActionResult> GetWatchedMovieByUserAndMovie([FromQuery] string? userId, [FromQuery] Guid? movieId)
-    {
-        try
-        {
-            var result = await _watchedMovieService.GetWatchedMovieByUserAndMovieAsync(userId, movieId);
-            return result is not null ? Ok(result) : NotFound("Watched movie record not found.");
-        }
-        catch (ArgumentNullException ex) { return BadRequest(ex.Message); }
-        catch (ArgumentException ex) { return NotFound(ex.Message); }
-        catch (InvalidOperationException ex) { return Conflict(ex.Message); }
-        catch (Exception ex) { return this.InternalServerError(ex.Message); }
-    }
 
     [HttpPost("by-user")]
     public async Task<IActionResult> GetWatchedMoviesByUserId([FromBody] WatchedMoviePaginationUserDto dto)

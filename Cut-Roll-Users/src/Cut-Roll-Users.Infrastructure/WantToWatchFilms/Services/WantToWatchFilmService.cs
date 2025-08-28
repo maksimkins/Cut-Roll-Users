@@ -15,7 +15,7 @@ public class WantToWatchFilmService : IWantToWatchFilmService
         _wantToWatchFilmRepository = wantToWatchFilmRepository;
     }
 
-    public async Task<Guid> AddToWantToWatchAsync(WantToWatchFilmDto? wantToWatchDto)
+    public async Task<Guid> AddMovieToWantToWatchAsync(WantToWatchFilmDto? wantToWatchDto)
     {
         if (wantToWatchDto == null)
             throw new ArgumentNullException(nameof(wantToWatchDto), "Want to watch data cannot be null.");
@@ -27,7 +27,7 @@ public class WantToWatchFilmService : IWantToWatchFilmService
             throw new ArgumentException("Movie ID cannot be empty.", nameof(wantToWatchDto.MovieId));
 
       
-        var isAlreadyInWantToWatch = await _wantToWatchFilmRepository.IsInWantToWatchAsync(wantToWatchDto);
+        var isAlreadyInWantToWatch = await _wantToWatchFilmRepository.IsMovieInWantToWatchByUserAsync(wantToWatchDto.UserId, wantToWatchDto.MovieId);
         if (isAlreadyInWantToWatch)
             return wantToWatchDto.MovieId; 
 
@@ -35,7 +35,7 @@ public class WantToWatchFilmService : IWantToWatchFilmService
         return result ?? throw new InvalidOperationException("Failed to add movie to want to watch.");
     }
 
-    public async Task<Guid> RemoveFromWantToWatchAsync(WantToWatchFilmDto? wantToWatchDto)
+    public async Task<Guid> RemoveMovieFromWantToWatchAsync(WantToWatchFilmDto? wantToWatchDto)
     {
         if (wantToWatchDto == null)
             throw new ArgumentNullException(nameof(wantToWatchDto), "Remove from want to watch data cannot be null.");
@@ -47,7 +47,7 @@ public class WantToWatchFilmService : IWantToWatchFilmService
             throw new ArgumentException("Movie ID cannot be empty.", nameof(wantToWatchDto.MovieId));
 
         
-        var isInWantToWatch = await _wantToWatchFilmRepository.IsInWantToWatchAsync(wantToWatchDto);
+        var isInWantToWatch = await _wantToWatchFilmRepository.IsMovieInWantToWatchByUserAsync(wantToWatchDto.UserId, wantToWatchDto.MovieId);
         if (!isInWantToWatch)
             return wantToWatchDto.MovieId;
 
@@ -58,7 +58,7 @@ public class WantToWatchFilmService : IWantToWatchFilmService
         return result.Value;
     }
 
-    public async Task<PagedResult<MovieSimplifiedDto>> GetWantToWatchMoviesAsync(WantToWatchFilmPaginationUserDto? paginationDto)
+    public async Task<PagedResult<MovieSimplifiedDto>> GetWantToWatchFilmsByUserIdAsync(WantToWatchFilmPaginationUserDto? paginationDto)
     {
         if (paginationDto == null)
             throw new ArgumentNullException(nameof(paginationDto), "Pagination data cannot be null.");
@@ -66,7 +66,7 @@ public class WantToWatchFilmService : IWantToWatchFilmService
         if (string.IsNullOrWhiteSpace(paginationDto.UserId))
             throw new ArgumentException("User ID cannot be null or empty.", nameof(paginationDto.UserId));
 
-        return await _wantToWatchFilmRepository.GetWantToWatchMoviesAsync(paginationDto);
+        return await _wantToWatchFilmRepository.GetByUserIdAsync(paginationDto);
     }
 
     public async Task<bool> IsMovieInWantToWatchAsync(string? userId, Guid? movieId)
@@ -77,13 +77,7 @@ public class WantToWatchFilmService : IWantToWatchFilmService
         if (!movieId.HasValue || movieId.Value == Guid.Empty)
             throw new ArgumentException("Movie ID cannot be null or empty.", nameof(movieId));
 
-        var dto = new WantToWatchFilmDto
-        {
-            UserId = userId,
-            MovieId = movieId.Value
-        };
-
-        return await _wantToWatchFilmRepository.IsInWantToWatchAsync(dto);
+        return await _wantToWatchFilmRepository.IsMovieInWantToWatchByUserAsync(userId, movieId.Value);
     }
 
     public async Task<int> GetWantToWatchCountByUserIdAsync(string? userId)
@@ -92,5 +86,18 @@ public class WantToWatchFilmService : IWantToWatchFilmService
             throw new ArgumentException("User ID cannot be null or empty.", nameof(userId));
 
         return await _wantToWatchFilmRepository.GetWantToWatchCountByUserIdAsync(userId);
+    }
+
+
+
+    public async Task<bool> IsMovieInWantToWatchByUserAsync(string? userId, Guid? movieId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentException("User ID cannot be null or empty.", nameof(userId));
+
+        if (!movieId.HasValue || movieId.Value == Guid.Empty)
+            throw new ArgumentException("Movie ID cannot be null or empty.", nameof(movieId));
+
+        return await _wantToWatchFilmRepository.IsMovieInWantToWatchByUserAsync(userId, movieId.Value);
     }
 }

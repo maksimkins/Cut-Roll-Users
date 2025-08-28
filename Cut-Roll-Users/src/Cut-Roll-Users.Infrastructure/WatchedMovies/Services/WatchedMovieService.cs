@@ -34,7 +34,7 @@ public class WatchedMovieService : IWatchedMovieService
         return result ?? throw new InvalidOperationException("Failed to mark movie as watched.");
     }
 
-    public async Task<Guid> RemoveWatchedMovieAsync(WatchedMovieDto? watchedMovieDto)
+    public async Task<Guid> UnmarkMovieAsWatchedAsync(WatchedMovieDto? watchedMovieDto)
     {
         if (watchedMovieDto == null)
             throw new ArgumentNullException(nameof(watchedMovieDto), "Remove watched movie data cannot be null.");
@@ -65,7 +65,7 @@ public class WatchedMovieService : IWatchedMovieService
         return await _watchedMovieRepository.SearchAsync(searchDto);
     }
 
-    public async Task<WatchedMovieResponseDto?> GetWatchedMovieByUserAndMovieAsync(string? userId, Guid? movieId)
+    public async Task<WatchedMovieResponseDto?> GetWatchedMovieAsync(string? userId, Guid? movieId)
     {
         if (string.IsNullOrWhiteSpace(userId))
             throw new ArgumentException("User ID cannot be null or empty.", nameof(userId));

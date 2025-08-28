@@ -11,5 +11,5 @@ public class ReviewSimplifiedDto
     public DateTime CreatedAt { get; set; }
     public int LikesCount { get; set; }
     public int CommentsCount { get; set; }
-    public UserSimlified User { get; set; } = null!;
+    public UserSimplified User { get; set; } = null!;
 }

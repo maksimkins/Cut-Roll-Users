@@ -2,6 +2,7 @@ using Cut_Roll_Users.Core.Common.Dtos;
 using Cut_Roll_Users.Core.ListEntities.Dtos;
 using Cut_Roll_Users.Core.ListEntities.Repositories;
 using Cut_Roll_Users.Core.ListEntities.Services;
+using Cut_Roll_Users.Core.Movies.Dtos;
 
 namespace Cut_Roll_Users.Infrastructure.ListEntities.Services;
 
@@ -48,6 +49,10 @@ public class ListEntityService : IListEntityService
         if (string.IsNullOrWhiteSpace(listUpdateDto.Title) && string.IsNullOrWhiteSpace(listUpdateDto.Description))
             throw new ArgumentException("At least one field (Title or Description) must be provided for update.");
 
+        var list = await _listEntityRepository.GetByIdAsync(listUpdateDto.Id);
+        if (list == null || list.UserSimplified.Id != listUpdateDto.UserId)
+            throw new ArgumentException("user doesnt own this list");
+
         var result = await _listEntityRepository.UpdateAsync(listUpdateDto);
         if (result == null)
             throw new InvalidOperationException($"ListEntity not found with Id: {listUpdateDto.Id}");
@@ -92,5 +97,15 @@ public class ListEntityService : IListEntityService
             throw new ArgumentException("User ID cannot be null or empty.", nameof(userId));
 
         return await _listEntityRepository.GetListCountByUserIdAsync(userId);
+    }
+
+    public async Task<PagedResult<MovieSimplifiedDto>> GetMoviesFromListAsync(ListEntityGetByIdDto? dto)
+    {
+        if (dto == null)
+            throw new ArgumentNullException(nameof(dto), "data cannot be null.");
+        if (dto.ListId == Guid.Empty)
+            throw new ArgumentException("List ID cannot be null or empty.", nameof(dto.ListId));
+
+        return await _listEntityRepository.GetMoviesFromListAsync(dto);
     }
 }

@@ -6,6 +6,7 @@ using Cut_Roll_Users.Core.ReviewLikes.Services;
 using Cut_Roll_Users.Core.Reviews.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 [Route("[controller]")]
 [ApiController]
@@ -24,6 +25,10 @@ public class ReviewLikeController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            if (likeDto?.UserId != userId)
+                throw new ArgumentException("User ID in request does not match authenticated user ID.");
+            
             var result = await _reviewLikeService.LikeReviewAsync(likeDto);
             return Ok(result);
         }
@@ -39,6 +44,10 @@ public class ReviewLikeController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            if (likeDto?.UserId != userId)
+                throw new ArgumentException("User ID in request does not match authenticated user ID.");
+            
             var result = await _reviewLikeService.UnlikeReviewAsync(likeDto);
             return Ok(result);
         }

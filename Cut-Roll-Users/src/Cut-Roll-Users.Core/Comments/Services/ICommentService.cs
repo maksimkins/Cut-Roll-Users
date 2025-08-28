@@ -7,7 +7,7 @@ public interface ICommentService
 {
     Task<Guid> CreateCommentAsync(CommentCreateDto? commentDto);
     Task<Guid> UpdateCommentAsync(CommentUpdateDto? commentDto);
-    Task<Guid> DeleteCommentAsync(CommentUpdateDto? commentDto);
+    Task<Guid> DeleteCommentAsync(CommentDeleteDto? commentDto);
     Task<PagedResult<CommentResponseDto>> GetByReviewIdAsync(CommentPaginationReviewDto dto);
     Task<PagedResult<CommentResponseDto>> GetByUserIdAsync(CommentPaginationUserDto dto);
     Task<int> GetCommentCountByReviewIdAsync(Guid? reviewId);

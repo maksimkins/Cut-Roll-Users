@@ -9,7 +9,7 @@ public interface IWantToWatchFilmRepository :
     ICreateAsync<WantToWatchFilmDto, Guid?>,
     IDeleteAsync<WantToWatchFilmDto, Guid?>
 {
-    Task<bool> IsInWantToWatchAsync(WantToWatchFilmDto dto);
+    Task<PagedResult<MovieSimplifiedDto>> GetByUserIdAsync(WantToWatchFilmPaginationUserDto dto);
     Task<int> GetWantToWatchCountByUserIdAsync(string userId);
-    Task<PagedResult<MovieSimplifiedDto>> GetWantToWatchMoviesAsync(WantToWatchFilmPaginationUserDto dto);
+    Task<bool> IsMovieInWantToWatchByUserAsync(string userId, Guid movieId);
 }

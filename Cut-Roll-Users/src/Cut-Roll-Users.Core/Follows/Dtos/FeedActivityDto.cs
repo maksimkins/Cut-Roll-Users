@@ -7,7 +7,7 @@ namespace Cut_Roll_Users.Core.Follows.Dtos;
 
 public class FeedActivityDto
 {
-    public UserSimlified User { get; set; } = null!;
+    public UserSimplified User { get; set; } = null!;
     public ActivityType Type { get; set; }
     public DateTime CreatedAt { get; set; }
     public MovieSimplifiedDto? Movie { get; set; }

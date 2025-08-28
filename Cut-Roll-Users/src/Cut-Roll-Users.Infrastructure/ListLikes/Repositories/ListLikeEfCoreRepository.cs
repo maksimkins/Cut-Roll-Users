@@ -1,7 +1,9 @@
-using Cut_Roll_Users.Core.Common.Repositories.Base;
+using Cut_Roll_Users.Core.Common.Dtos;
+using Cut_Roll_Users.Core.ListEntities.Dtos;
 using Cut_Roll_Users.Core.ListLikes.Dtos;
 using Cut_Roll_Users.Core.ListLikes.Models;
 using Cut_Roll_Users.Core.ListLikes.Repositories;
+using Cut_Roll_Users.Core.Users.Dtos;
 using Cut_Roll_Users.Infrastructure.Common.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -55,5 +57,52 @@ public class ListLikeEfCoreRepository : IListLikeRepository
         return await _context.ListLikes
             .Where(ll => ll.ListId == listId)
             .CountAsync();
+    }
+
+    public async Task<PagedResult<ListEntityResponseDto>> GetLikedLists(ListLikedDto dto)
+    {
+        var query = _context.ListLikes
+            .Include(like => like.List)
+                .ThenInclude(list => list.User) 
+            .Include(like => like.List)
+                .ThenInclude(list => list.Movies) 
+            .Where(like => like.UserId == dto.UserId)
+            .Select(like => like.List) 
+            .AsQueryable();
+
+        var totalCount = await query.CountAsync();
+
+        var pageNumber = dto.Page <= 0 ? 1 : dto.Page;
+        var pageSize = dto.PageSize <= 0 ? 10 : dto.PageSize;
+
+        var lists = await query
+            .OrderByDescending(l => l.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .Select(list => new ListEntityResponseDto
+            {
+                Id = list.Id,
+                Title = list.Title,
+                Description = list.Description,
+                CreatedAt = list.CreatedAt,
+                MoviesCount = list.Movies.Count,
+                LikesCount = list.Likes.Count,
+                UserSimplified = new UserSimplified
+                {
+                    Id = list.User.Id,
+                    UserName = list.User.UserName,
+                    Email = list.User.Email,
+                    AvatarPath = list.User.AvatarPath
+                }
+            })
+            .ToListAsync();
+
+        return new PagedResult<ListEntityResponseDto>
+        {
+            Data = lists,
+            TotalCount = totalCount,
+            Page = pageNumber,
+            PageSize = pageSize
+        };
     }
 }

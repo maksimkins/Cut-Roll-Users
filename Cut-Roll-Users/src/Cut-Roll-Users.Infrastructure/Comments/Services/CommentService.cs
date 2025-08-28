@@ -53,7 +53,7 @@ public class CommentService : ICommentService
         return result.Value;
     }
 
-    public async Task<Guid> DeleteCommentAsync(CommentUpdateDto? commentDto)
+    public async Task<Guid> DeleteCommentAsync(CommentDeleteDto? commentDto)
     {
         if (commentDto == null)
             throw new ArgumentNullException(nameof(commentDto), "Comment deletion data cannot be null.");
@@ -64,13 +64,8 @@ public class CommentService : ICommentService
         if (commentDto.ReviewId == Guid.Empty)
             throw new ArgumentException("Review ID cannot be empty.", nameof(commentDto.ReviewId));
 
-        var deleteDto = new CommentDeleteDto
-        {
-            UserId = commentDto.UserId,
-            ReviewId = commentDto.ReviewId
-        };
 
-        var result = await _commentRepository.DeleteAsync(deleteDto);
+        var result = await _commentRepository.DeleteAsync(commentDto);
         if (result == null)
             throw new InvalidOperationException($"Comment not found for UserId: {commentDto.UserId} and ReviewId: {commentDto.ReviewId}");
         

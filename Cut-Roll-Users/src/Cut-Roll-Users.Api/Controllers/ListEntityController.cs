@@ -5,6 +5,7 @@ using Cut_Roll_Users.Core.ListEntities.Dtos;
 using Cut_Roll_Users.Core.ListEntities.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 [Route("[controller]")]
 [ApiController]
@@ -23,6 +24,10 @@ public class ListEntityController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            if (listCreateDto?.UserId != userId)
+                throw new ArgumentException("User ID in request does not match authenticated user ID.");
+            
             var result = await _listEntityService.CreateListAsync(listCreateDto);
             return Ok(result);
         }
@@ -52,6 +57,10 @@ public class ListEntityController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            if (listUpdateDto?.UserId != userId)
+                throw new ArgumentException("User ID in request does not match authenticated user ID.");
+            
             var result = await _listEntityService.UpdateListAsync(listUpdateDto);
             return Ok(result);
         }

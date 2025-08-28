@@ -5,6 +5,7 @@ using Cut_Roll_Users.Core.MovieLikes.Dtos;
 using Cut_Roll_Users.Core.MovieLikes.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 [Route("[controller]")]
 [ApiController]
@@ -19,10 +20,14 @@ public class MovieLikeController : ControllerBase
 
     [Authorize]
     [HttpPost("like")]
-    public async Task<IActionResult> LikeMovie([FromBody] MovieLikeCreateDto? likeDto)
+    public async Task<IActionResult> LikeMovie([FromBody] MovieLikeDto? likeDto)
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            if (likeDto?.UserId != userId)
+                throw new ArgumentException("User ID in request does not match authenticated user ID.");
+            
             var result = await _movieLikeService.LikeMovieAsync(likeDto);
             return Ok(result);
         }
@@ -34,10 +39,14 @@ public class MovieLikeController : ControllerBase
 
     [Authorize]
     [HttpPost("unlike")]
-    public async Task<IActionResult> UnlikeMovie([FromBody] MovieLikeCreateDto? likeDto)
+    public async Task<IActionResult> UnlikeMovie([FromBody] MovieLikeDto? likeDto)
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            if (likeDto?.UserId != userId)
+                throw new ArgumentException("User ID in request does not match authenticated user ID.");
+            
             var result = await _movieLikeService.UnlikeMovieAsync(likeDto);
             return Ok(result);
         }
@@ -52,7 +61,7 @@ public class MovieLikeController : ControllerBase
     {
         try
         {
-            var result = await _movieLikeService.GetLikedMovies(dto);
+            var result = await _movieLikeService.GetLikedMoviesByUserIdAsync(dto);
             return Ok(result);
         }
         catch (ArgumentNullException ex) { return BadRequest(ex.Message); }

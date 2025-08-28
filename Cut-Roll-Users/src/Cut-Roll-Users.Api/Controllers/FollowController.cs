@@ -5,6 +5,7 @@ using Cut_Roll_Users.Core.Follows.Dtos;
 using Cut_Roll_Users.Core.Follows.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 [Route("[controller]")]
 [ApiController]
@@ -23,6 +24,10 @@ public class FollowController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            if (dto?.FollowerId != userId)
+                throw new ArgumentException("User ID in request does not match authenticated user ID.");
+            
             var result = await _followService.CreateFollowAsync(dto);
             return Ok(result);
         }
@@ -32,12 +37,17 @@ public class FollowController : ControllerBase
         catch (Exception ex) { return this.InternalServerError(ex.Message); }
     }
 
+
     [Authorize]
     [HttpDelete]
     public async Task<IActionResult> Delete([FromBody] FollowDeleteDto? dto)
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            if (dto?.FollowerId != userId)
+                throw new ArgumentException("User ID in request does not match authenticated user ID.");
+            
             var result = await _followService.DeleteFollowAsync(dto);
             return Ok(result);
         }
@@ -47,20 +57,6 @@ public class FollowController : ControllerBase
         catch (Exception ex) { return this.InternalServerError(ex.Message); }
     }
 
-    [Authorize]
-    [HttpDelete("unfollow")]
-    public async Task<IActionResult> UnfollowUser([FromQuery] string? followerId, [FromQuery] string? followingId)
-    {
-        try
-        {
-            var result = await _followService.UnfollowUserAsync(followerId, followingId);
-            return Ok(result);
-        }
-        catch (ArgumentNullException ex) { return BadRequest(ex.Message); }
-        catch (ArgumentException ex) { return NotFound(ex.Message); }
-        catch (InvalidOperationException ex) { return Conflict(ex.Message); }
-        catch (Exception ex) { return this.InternalServerError(ex.Message); }
-    }
 
     [HttpPost("by-user")]
     public async Task<IActionResult> GetUserFollows([FromBody] FollowPaginationDto? dto)

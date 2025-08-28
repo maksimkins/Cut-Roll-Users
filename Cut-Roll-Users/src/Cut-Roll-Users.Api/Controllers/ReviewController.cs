@@ -5,6 +5,7 @@ using Cut_Roll_Users.Core.Reviews.Dtos;
 using Cut_Roll_Users.Core.Reviews.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 [Route("[controller]")]
 [ApiController]
@@ -23,6 +24,10 @@ public class ReviewController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            if (reviewCreateDto?.UserId != userId)
+                throw new ArgumentException("User ID in request does not match authenticated user ID.");
+            
             var result = await _reviewService.CreateReviewAsync(reviewCreateDto);
             return Ok(result);
         }
@@ -52,6 +57,10 @@ public class ReviewController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            if (reviewUpdateDto?.UserId != userId)
+                throw new ArgumentException("User ID in request does not match authenticated user ID.");
+            
             var result = await _reviewService.UpdateReviewAsync(reviewUpdateDto);
             return Ok(result);
         }
@@ -67,6 +76,11 @@ public class ReviewController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            var review = await _reviewService.GetReviewByIdAsync(id);
+            if (review is null || review.UserSimplified.Id != userId)
+                throw new ArgumentException("there is no review or user doesnt posses it");
+
             var result = await _reviewService.DeleteReviewByIdAsync(id);
             return Ok(result);
         }

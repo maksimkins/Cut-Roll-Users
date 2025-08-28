@@ -3,6 +3,8 @@ using Cut_Roll_Users.Core.Common.Repositories.Base;
 using Cut_Roll_Users.Core.ListEntities.Dtos;
 using Cut_Roll_Users.Core.ListEntities.Models;
 using Cut_Roll_Users.Core.ListEntities.Repositories;
+using Cut_Roll_Users.Core.MovieImages.Enums;
+using Cut_Roll_Users.Core.Movies.Dtos;
 using Cut_Roll_Users.Core.Users.Dtos;
 using Cut_Roll_Users.Infrastructure.Common.Data;
 using Microsoft.EntityFrameworkCore;
@@ -47,7 +49,7 @@ public class ListEntityEfCoreRepository : IListEntityRepository
         return new ListEntityResponseDto
         {
             Id = listEntity.Id,
-            userSimlified = new UserSimlified
+            UserSimplified = new UserSimplified
             {
                 Id = listEntity.User.Id,
                 UserName = listEntity.User.UserName,
@@ -98,6 +100,7 @@ public class ListEntityEfCoreRepository : IListEntityRepository
             .Include(l => l.User)
             .Include(l => l.Movies)
             .Include(l => l.Likes)
+            .Include(l => l.Likes)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(request.UserId))
@@ -121,6 +124,11 @@ public class ListEntityEfCoreRepository : IListEntityRepository
             query = query.Where(l => l.CreatedAt <= request.ToDate.Value);
         }
 
+        if (request.SortByLikesAscending != null)
+        {
+            query = query.OrderByDescending(l => l.Likes.Count());
+        }
+
         var totalCount = await query.CountAsync();
 
         var pageNumber = request.Page <= 0 ? 1 : request.Page;
@@ -133,7 +141,7 @@ public class ListEntityEfCoreRepository : IListEntityRepository
             .Select(l => new ListEntityResponseDto
             {
                 Id = l.Id,
-                userSimlified = new UserSimlified
+                UserSimplified = new UserSimplified
                 {
                     Id = l.User.Id,
                     UserName = l.User.UserName,
@@ -177,7 +185,7 @@ public class ListEntityEfCoreRepository : IListEntityRepository
             .Select(l => new ListEntityResponseDto
             {
                 Id = l.Id,
-                userSimlified = new UserSimlified
+                UserSimplified = new UserSimplified
                 {
                     Id = l.User.Id,
                     UserName = l.User.UserName,
@@ -206,5 +214,46 @@ public class ListEntityEfCoreRepository : IListEntityRepository
         return await _context.ListEntities
             .Where(l => l.UserId == userId)
             .CountAsync();
+    }
+
+    public async Task<PagedResult<MovieSimplifiedDto>> GetMoviesFromListAsync(ListEntityGetByIdDto request)
+    {
+        var query = _context.ListEntities
+            .Include(l => l.User)
+            .Include(l => l.Movies).ThenInclude(m => m.Movie)
+            .Include(l => l.Likes)
+            .AsQueryable();
+
+        var listQuery = query.Where(l => l.Id == request.ListId);
+
+
+        var moviesQuery = listQuery
+            .SelectMany(l => l.Movies.Select(lm => lm.Movie));
+
+        var totalCount = await moviesQuery.CountAsync();
+
+        var pageNumber = request.Page <= 0 ? 1 : request.Page;
+        var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
+
+        var movies = await moviesQuery
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .Select(m => new MovieSimplifiedDto
+            {
+                MovieId = m.Id,
+                Title = m.Title,
+                Poster = m.Images
+                    .Where(i => i.Type == ImageTypes.poster.ToString())
+                    .FirstOrDefault()
+            })
+            .ToListAsync();
+
+        return new PagedResult<MovieSimplifiedDto>
+        {
+            Data = movies,
+            TotalCount = totalCount,
+            Page = pageNumber,
+            PageSize = pageSize
+        };
     }
 }

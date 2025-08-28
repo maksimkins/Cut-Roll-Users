@@ -1,3 +1,5 @@
+using Cut_Roll_Users.Core.Common.Dtos;
+using Cut_Roll_Users.Core.ListEntities.Dtos;
 using Cut_Roll_Users.Core.ListLikes.Dtos;
 using Cut_Roll_Users.Core.ListLikes.Repositories;
 using Cut_Roll_Users.Core.ListLikes.Services;
@@ -73,5 +75,15 @@ public class ListLikeService : IListLikeService
             throw new ArgumentException("List ID cannot be null or empty.", nameof(listId));
 
         return await _listLikeRepository.GetLikeCountByListIdAsync(listId.Value);
+    }
+
+    public Task<PagedResult<ListEntityResponseDto>> GetLikedLists(ListLikedDto dto)
+    {
+        if (dto == null)
+            throw new ArgumentNullException(nameof(dto), "dto data cannot be null.");
+        if (string.IsNullOrWhiteSpace(dto.UserId))
+            throw new ArgumentException("User ID cannot be null or empty.", nameof(dto.UserId));
+
+        return _listLikeRepository.GetLikedLists(dto);
     }
 }

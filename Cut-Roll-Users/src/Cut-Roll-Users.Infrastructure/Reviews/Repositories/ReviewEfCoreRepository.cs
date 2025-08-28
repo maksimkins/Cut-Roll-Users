@@ -32,7 +32,22 @@ public class ReviewEfCoreRepository : IReviewRepository
         _context.Reviews.Add(review);
         var result = await _context.SaveChangesAsync();
         
-        return result > 0 ? review.Id : null;
+        if (result > 0)
+        {
+            var movie = await _context.Movies
+                .Include(m => m.Reviews)
+                .FirstOrDefaultAsync(m => m.Id == entity.MovieId);
+
+            if (movie != null && movie.Reviews.Any())
+            {
+                movie.RatingAverage = movie.Reviews.Average(r => r.Rating);
+                await _context.SaveChangesAsync();
+            }
+
+            return review.Id;
+        }
+
+        return null;
     }
 
     public async Task<ReviewResponseDto?> GetByIdAsync(Guid id)
@@ -48,7 +63,7 @@ public class ReviewEfCoreRepository : IReviewRepository
         return new ReviewResponseDto
         {
             Id = review.Id,
-            UserSimlified = new UserSimlified
+            UserSimplified = new UserSimplified
             {
                 Id = review.User.Id,
                 UserName = review.User.UserName,
@@ -107,7 +122,7 @@ public class ReviewEfCoreRepository : IReviewRepository
         return new ReviewResponseDto
         {
             Id = review.Id,
-            UserSimlified = new UserSimlified
+            UserSimplified = new UserSimplified
             {
                 Id = review.User.Id,
                 UserName = review.User.UserName,
@@ -143,7 +158,7 @@ public class ReviewEfCoreRepository : IReviewRepository
             .Select(r => new ReviewResponseDto
             {
                 Id = r.Id,
-                UserSimlified = new UserSimlified
+                UserSimplified = new UserSimplified
                 {
                     Id = r.User.Id,
                     UserName = r.User.UserName,
@@ -188,7 +203,7 @@ public class ReviewEfCoreRepository : IReviewRepository
             .Select(r => new ReviewResponseDto
             {
                 Id = r.Id,
-                UserSimlified = new UserSimlified
+                UserSimplified = new UserSimplified
                 {
                     Id = r.User.Id,
                     UserName = r.User.UserName,
@@ -226,5 +241,11 @@ public class ReviewEfCoreRepository : IReviewRepository
         return await _context.Reviews
             .Where(r => r.MovieId == movieId)
             .CountAsync();
+    }
+
+    public async Task<bool> IsReviewOwnedByUserAsync(Guid reviewId, string userId)
+    {
+        var review = await _context.Reviews.Where(r => r.Id == reviewId).FirstOrDefaultAsync();
+        return review?.UserId == userId;
     }
 }

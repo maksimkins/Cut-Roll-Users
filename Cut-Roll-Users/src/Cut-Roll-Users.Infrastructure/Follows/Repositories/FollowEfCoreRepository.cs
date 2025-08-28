@@ -57,7 +57,7 @@ public class FollowEfCoreRepository : IFollowRepository
         return result > 0 ? follow.FollowerId : null;
     }
 
-    public async Task<PagedResult<FollowResponseDto>> GetUserFollowsAsync(FollowPaginationDto dto)
+    public async Task<PagedResult<UserSimplified>> GetUserFollowsAsync(FollowPaginationDto dto)
     {
         IQueryable<Follow> query;
 
@@ -83,31 +83,16 @@ public class FollowEfCoreRepository : IFollowRepository
             .OrderByDescending(f => f.CreatedAt)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
-            .Select(f => new FollowResponseDto
+            .Select(f => new UserSimplified
             { 
-                Follower = dto.Type == FollowType.Followers ? new UserResponseDto
-                {
-                    Id = f.Follower.Id,
-                    Username = f.Follower.UserName,
-                    Email = f.Follower.Email,
-                    AvatarPath = f.Follower.AvatarPath,
-                    IsBanned = f.Follower.IsBanned,
-                    IsMuted = f.Follower.IsMuted
-                } : null!,
-                Following = dto.Type == FollowType.Following ? new UserResponseDto
-                {
-                    Id = f.Following.Id,
-                    Username = f.Following.UserName,
-                    Email = f.Following.Email,
-                    AvatarPath = f.Following.AvatarPath,
-                    IsBanned = f.Following.IsBanned,
-                    IsMuted = f.Following.IsMuted
-                } : null!,
-                CreatedAt = f.CreatedAt
+                Id = dto.Type == FollowType.Followers ? f.Follower.Id : f.Following.Id,
+                UserName = dto.Type == FollowType.Followers ? f.Follower.UserName : f.Following.UserName,
+                Email = dto.Type == FollowType.Followers ? f.Follower.Email : f.Following.Email,
+                AvatarPath = dto.Type == FollowType.Followers ? f.Follower.AvatarPath : f.Following.AvatarPath,
             })
             .ToListAsync();
 
-        return new PagedResult<FollowResponseDto>
+        return new PagedResult<UserSimplified>
         {
             Data = follows,
             TotalCount = totalCount,
@@ -184,7 +169,7 @@ public class FollowEfCoreRepository : IFollowRepository
                 .Where(ml => !dto.FromDate.HasValue || ml.LikedAt >= dto.FromDate.Value)
                 .Select(ml => new FeedActivityDto
                 {
-                    User = new UserSimlified
+                    User = new UserSimplified
                     {
                         Id = ml.User.Id,
                         UserName = ml.User.UserName,
@@ -214,7 +199,7 @@ public class FollowEfCoreRepository : IFollowRepository
                 .Where(r => !dto.FromDate.HasValue || r.CreatedAt >= dto.FromDate.Value)
                 .Select(r => new FeedActivityDto
                 {
-                    User = new UserSimlified
+                    User = new UserSimplified
                     {
                         Id = r.User.Id,
                         UserName = r.User.UserName,
@@ -251,7 +236,7 @@ public class FollowEfCoreRepository : IFollowRepository
                 .Where(w => !dto.FromDate.HasValue || w.WatchedAt >= dto.FromDate.Value)
                 .Select(w => new FeedActivityDto
                 {
-                    User = new UserSimlified
+                    User = new UserSimplified
                     {
                         Id = w.User.Id,
                         UserName = w.User.UserName,
@@ -281,7 +266,7 @@ public class FollowEfCoreRepository : IFollowRepository
                 .Where(w => !dto.FromDate.HasValue || w.AddedAt >= dto.FromDate.Value)
                 .Select(w => new FeedActivityDto
                 {
-                    User = new UserSimlified
+                    User = new UserSimplified
                     {
                         Id = w.User.Id,
                         UserName = w.User.UserName,
@@ -309,7 +294,7 @@ public class FollowEfCoreRepository : IFollowRepository
                 .Where(l => !dto.FromDate.HasValue || l.CreatedAt >= dto.FromDate.Value)
                 .Select(l => new FeedActivityDto
                 {
-                    User = new UserSimlified
+                    User = new UserSimplified
                     {
                         Id = l.User.Id,
                         UserName = l.User.UserName,
@@ -339,7 +324,7 @@ public class FollowEfCoreRepository : IFollowRepository
                 .Where(ll => !dto.FromDate.HasValue || ll.LikedAt >= dto.FromDate.Value)
                 .Select(ll => new FeedActivityDto
                 {
-                    User = new UserSimlified
+                    User = new UserSimplified
                     {
                         Id = ll.User.Id,
                         UserName = ll.User.UserName,
@@ -371,7 +356,7 @@ public class FollowEfCoreRepository : IFollowRepository
                 .Where(rl => !dto.FromDate.HasValue || rl.LikedAt >= dto.FromDate.Value)
                 .Select(rl => new FeedActivityDto
                 {
-                    User = new UserSimlified
+                    User = new UserSimplified
                     {
                         Id = rl.User.Id,
                         UserName = rl.User.UserName,
@@ -398,7 +383,6 @@ public class FollowEfCoreRepository : IFollowRepository
             activities.AddRange(reviewLiked);
         }
 
-        // Sort all activities by creation date (newest first)
         var sortedActivities = activities.OrderByDescending(a => a.CreatedAt).ToList();
 
         var totalCount = sortedActivities.Count;
@@ -426,4 +410,11 @@ public class FollowEfCoreRepository : IFollowRepository
             .Select(f => f.FollowingId)
             .ToListAsync();
     }
+
+    public async Task<bool> IsFollowOwnedByUserAsync(string followerId, string followingId)
+    {
+        return await _context.Follows
+            .AnyAsync(f => f.FollowerId == followerId && f.FollowingId == followingId);
+    }
+
 }

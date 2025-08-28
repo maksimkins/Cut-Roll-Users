@@ -6,6 +6,6 @@ namespace Cut_Roll_Users.Core.MovieLikes.Dtos;
 public class MovieLikeResponseDto
 {
     public DateTime LikedAt { get; set; }
-    public UserSimlified User { get; set; } = null!;
+    public UserSimplified User { get; set; } = null!;
     public MovieSimplifiedDto Movie { get; set; } = null!;
 }

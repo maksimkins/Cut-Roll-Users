@@ -5,6 +5,7 @@ using Cut_Roll_Users.Core.Comments.Dtos;
 using Cut_Roll_Users.Core.Comments.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 [Route("[controller]")]
 [ApiController]
@@ -23,6 +24,10 @@ public class CommentController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            if (commentDto?.UserId != userId)
+                throw new ArgumentException("User ID in request does not match authenticated user ID.");
+            
             var result = await _commentService.CreateCommentAsync(commentDto);
             return Ok(result);
         }
@@ -38,6 +43,10 @@ public class CommentController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            if (commentDto?.UserId != userId)
+                throw new ArgumentException("User ID in request does not match authenticated user ID.");
+            
             var result = await _commentService.UpdateCommentAsync(commentDto);
             return Ok(result);
         }
@@ -48,11 +57,18 @@ public class CommentController : ControllerBase
     }
 
     [Authorize]
-    [HttpDelete]
-    public async Task<IActionResult> Delete([FromBody] CommentUpdateDto? commentDto)
+    [HttpDelete("{reviewId:guid}")]
+    public async Task<IActionResult> Delete([FromRoute] Guid? reviewId)
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            var commentDto = new CommentDeleteDto
+            {
+                UserId = userId,
+                ReviewId = reviewId ?? Guid.Empty,
+            };
+            
             var result = await _commentService.DeleteCommentAsync(commentDto);
             return Ok(result);
         }

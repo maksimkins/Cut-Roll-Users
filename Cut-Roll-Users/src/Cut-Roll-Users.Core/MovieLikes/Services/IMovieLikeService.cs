@@ -6,9 +6,9 @@ namespace Cut_Roll_Users.Core.MovieLikes.Services;
 
 public interface IMovieLikeService
 {
-    Task<Guid> LikeMovieAsync(MovieLikeCreateDto? likeDto);
-    Task<Guid> UnlikeMovieAsync(MovieLikeCreateDto? likeDto);
-    Task<PagedResult<MovieSimplifiedDto>> GetLikedMovies(MovieLikePaginationUserDto dto);
+    Task<Guid> LikeMovieAsync(MovieLikeDto? likeDto);
+    Task<Guid> UnlikeMovieAsync(MovieLikeDto? likeDto);
     Task<bool> IsMovieLikedByUserAsync(string? userId, Guid? movieId);
     Task<int> GetMovieLikeCountAsync(Guid? movieId);
+    Task<PagedResult<MovieSimplifiedDto>> GetLikedMoviesByUserIdAsync(MovieLikePaginationUserDto dto);
 }

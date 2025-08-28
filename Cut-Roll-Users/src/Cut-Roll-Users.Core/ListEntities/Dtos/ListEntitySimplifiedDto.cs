@@ -10,5 +10,5 @@ public class ListEntitySimplifiedDto
     public DateTime CreatedAt { get; set; }
     public int MoviesCount { get; set; }
     public int LikesCount { get; set; }
-    public UserSimlified User { get; set; } = null!;
+    public UserSimplified User { get; set; } = null!;
 }

@@ -13,4 +13,5 @@ public interface IReviewLikeRepository :
     Task<bool> IsLikedByUserAsync(string userId, Guid reviewId);
     Task<int> GetLikeCountByReviewIdAsync(Guid reviewId);
     Task<PagedResult<Review>> GetLikedReviewsByUserIdAsync(ReviewPaginationUserDto dto);
+    
 }

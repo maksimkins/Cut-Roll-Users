@@ -15,4 +15,5 @@ public interface IReviewRepository :
     Task<PagedResult<ReviewResponseDto>> GetByUserIdAsync(ReviewPaginationUserDto dto);
     Task<double> GetAverageRatingByMovieIdAsync(Guid movieId);
     Task<int> GetReviewCountByMovieIdAsync(Guid movieId);
+    Task<bool> IsReviewOwnedByUserAsync(Guid reviewId, string userId);
 }

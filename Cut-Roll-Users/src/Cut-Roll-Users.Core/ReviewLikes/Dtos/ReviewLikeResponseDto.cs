@@ -6,5 +6,5 @@ public class ReviewLikeResponseDto
 {
     public Guid ReviewId { get; set; }
     public DateTime LikedAt { get; set; }
-    public UserSimlified User { get; set; } = null!;
+    public UserSimplified User { get; set; } = null!;
 }

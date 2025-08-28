@@ -5,6 +5,7 @@ using Cut_Roll_Users.Core.WantToWatchFilms.Dtos;
 using Cut_Roll_Users.Core.WantToWatchFilms.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 [Route("[controller]")]
 [ApiController]
@@ -23,7 +24,11 @@ public class WantToWatchFilmController : ControllerBase
     {
         try
         {
-            var result = await _wantToWatchFilmService.AddToWantToWatchAsync(wantToWatchDto);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            if (wantToWatchDto?.UserId != userId)
+                throw new ArgumentException("User ID in request does not match authenticated user ID.");
+            
+            var result = await _wantToWatchFilmService.AddMovieToWantToWatchAsync(wantToWatchDto);
             return Ok(result);
         }
         catch (ArgumentNullException ex) { return BadRequest(ex.Message); }
@@ -38,7 +43,11 @@ public class WantToWatchFilmController : ControllerBase
     {
         try
         {
-            var result = await _wantToWatchFilmService.RemoveFromWantToWatchAsync(wantToWatchDto);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            if (wantToWatchDto?.UserId != userId)
+                throw new ArgumentException("User ID in request does not match authenticated user ID.");
+            
+            var result = await _wantToWatchFilmService.RemoveMovieFromWantToWatchAsync(wantToWatchDto);
             return Ok(result);
         }
         catch (ArgumentNullException ex) { return BadRequest(ex.Message); }
@@ -52,7 +61,7 @@ public class WantToWatchFilmController : ControllerBase
     {
         try
         {
-            var result = await _wantToWatchFilmService.GetWantToWatchMoviesAsync(paginationDto);
+            var result = await _wantToWatchFilmService.GetWantToWatchFilmsByUserIdAsync(paginationDto);
             return Ok(result);
         }
         catch (ArgumentNullException ex) { return BadRequest(ex.Message); }
@@ -66,7 +75,7 @@ public class WantToWatchFilmController : ControllerBase
     {
         try
         {
-            var result = await _wantToWatchFilmService.IsMovieInWantToWatchAsync(userId, movieId);
+            var result = await _wantToWatchFilmService.IsMovieInWantToWatchByUserAsync(userId, movieId);
             return Ok(result);
         }
         catch (ArgumentNullException ex) { return BadRequest(ex.Message); }

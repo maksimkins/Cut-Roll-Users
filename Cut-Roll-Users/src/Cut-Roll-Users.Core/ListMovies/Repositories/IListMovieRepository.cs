@@ -11,4 +11,5 @@ public interface IListMovieRepository :
 {
     Task<bool> IsMovieInListAsync(Guid listId, Guid movieId);
     Task<int> GetMovieCountByListIdAsync(Guid listId);
+    Task<bool> IsListOwnedByUserAsync(Guid listId, string userId);
 }

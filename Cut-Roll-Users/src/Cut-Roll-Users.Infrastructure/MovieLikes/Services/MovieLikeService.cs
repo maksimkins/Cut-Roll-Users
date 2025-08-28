@@ -15,7 +15,7 @@ public class MovieLikeService : IMovieLikeService
         _movieLikeRepository = movieLikeRepository;
     }
 
-    public async Task<Guid> LikeMovieAsync(MovieLikeCreateDto? likeDto)
+    public async Task<Guid> LikeMovieAsync(MovieLikeDto? likeDto)
     {
         if (likeDto == null)
             throw new ArgumentNullException(nameof(likeDto), "Movie like data cannot be null.");
@@ -35,7 +35,7 @@ public class MovieLikeService : IMovieLikeService
         return result ?? throw new InvalidOperationException("Failed to create movie like.");
     }
 
-    public async Task<Guid> UnlikeMovieAsync(MovieLikeCreateDto? likeDto)
+    public async Task<Guid> UnlikeMovieAsync(MovieLikeDto? likeDto)
     {
         if (likeDto == null)
             throw new ArgumentNullException(nameof(likeDto), "Movie unlike data cannot be null.");
@@ -58,17 +58,6 @@ public class MovieLikeService : IMovieLikeService
         return result.Value;
     }
 
-    public async Task<PagedResult<MovieSimplifiedDto>> GetLikedMovies(MovieLikePaginationUserDto dto)
-    {
-        if (dto == null)
-            throw new ArgumentNullException(nameof(dto), "Pagination data cannot be null.");
-        
-        if (string.IsNullOrWhiteSpace(dto.UserId))
-            throw new ArgumentException("User ID cannot be null or empty.", nameof(dto.UserId));
-
-        return await _movieLikeRepository.GetLikedMovies(dto);
-    }
-
     public async Task<bool> IsMovieLikedByUserAsync(string? userId, Guid? movieId)
     {
         if (string.IsNullOrWhiteSpace(userId))
@@ -86,5 +75,16 @@ public class MovieLikeService : IMovieLikeService
             throw new ArgumentException("Movie ID cannot be null or empty.", nameof(movieId));
 
         return await _movieLikeRepository.GetLikeCountByMovieIdAsync(movieId.Value);
+    }
+
+    public async Task<PagedResult<MovieSimplifiedDto>> GetLikedMoviesByUserIdAsync(MovieLikePaginationUserDto dto)
+    {
+        if (dto == null)
+            throw new ArgumentNullException(nameof(dto), "Pagination data cannot be null.");
+        
+        if (string.IsNullOrWhiteSpace(dto.UserId))
+            throw new ArgumentException("User ID cannot be null or empty.", nameof(dto.UserId));
+
+        return await _movieLikeRepository.GetByUserIdAsync(dto);
     }
 }

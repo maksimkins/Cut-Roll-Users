@@ -1,20 +1,24 @@
 namespace Cut_Roll_Users.Api.Controllers;
 
 using Cut_Roll_Users.Api.Common.Extensions.Controllers;
+using Cut_Roll_Users.Core.ListEntities.Services;
 using Cut_Roll_Users.Core.ListMovies.Dtos;
 using Cut_Roll_Users.Core.ListMovies.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 [Route("[controller]")]
 [ApiController]
 public class ListMovieController : ControllerBase
 {
     private readonly IListMovieService _listMovieService;
+    private readonly IListEntityService _listService;
 
-    public ListMovieController(IListMovieService listMovieService)
+    public ListMovieController(IListMovieService listMovieService, IListEntityService listService)
     {
         _listMovieService = listMovieService;
+        _listService = listService;
     }
 
     [Authorize]
@@ -23,6 +27,11 @@ public class ListMovieController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            var list = await _listService.GetListByIdAsync(listMovieDto?.ListId);
+            if (list is null || list.UserSimplified.Id != userId)
+                throw new ArgumentException("there is no list, or user doent posses it");
+            
             var result = await _listMovieService.AddMovieToListAsync(listMovieDto);
             return Ok(result);
         }
@@ -38,6 +47,11 @@ public class ListMovieController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            var list = await _listService.GetListByIdAsync(listMovieDto?.ListId);
+            if (list is null || list.UserSimplified.Id != userId)
+                throw new ArgumentException("there is no list, or user doent posses it");
+            
             var result = await _listMovieService.RemoveMovieFromListAsync(listMovieDto);
             return Ok(result);
         }
@@ -53,6 +67,22 @@ public class ListMovieController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            var listId = toCreate?.FirstOrDefault()?.ListId;
+            var list = await _listService.GetListByIdAsync(listId);
+            if (toCreate != null)
+            {
+                foreach (var item in toCreate)
+                {
+                    if (toCreate.Any(lm => lm.ListId != listId))
+                    {
+                        throw new ArgumentException("All items must belong to the same list.");
+                    }
+                }
+                if (list is null || list.UserSimplified.Id != userId)
+                    throw new ArgumentException("there is no list, or user doent posses it");
+            }
+            
             var result = await _listMovieService.BulkCreateAsync(toCreate);
             return Ok(result);
         }
@@ -68,6 +98,22 @@ public class ListMovieController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+            var listId = toDelete?.FirstOrDefault()?.ListId;
+            var list = await _listService.GetListByIdAsync(listId);
+            if (toDelete != null)
+            {
+                foreach (var item in toDelete)
+                {
+                    if (toDelete.Any(lm => lm.ListId != listId))
+                    {
+                        throw new ArgumentException("All items must belong to the same list.");
+                    }
+                }
+                if (list is null || list.UserSimplified.Id != userId)
+                    throw new ArgumentException("there is no list, or user doent posses it");
+            }
+            
             var result = await _listMovieService.BulkDeleteAsync(toDelete);
             return Ok(result);
         }

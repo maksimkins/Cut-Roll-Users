@@ -1,5 +1,4 @@
 using Cut_Roll_Users.Core.Common.Dtos;
-using Cut_Roll_Users.Core.Common.Repositories.Base;
 using Cut_Roll_Users.Core.Comments.Dtos;
 using Cut_Roll_Users.Core.Comments.Models;
 using Cut_Roll_Users.Core.Comments.Repositories;
@@ -77,7 +76,7 @@ public class CommentEfCoreRepository : ICommentRepository
             .Take(pageSize)
             .Select(c => new CommentResponseDto
             {
-                userSimlified = new UserSimlified
+                UserSimplified = new UserSimplified
                 {
                     Id = c.User.Id,
                     UserName = c.User.UserName,
@@ -116,7 +115,7 @@ public class CommentEfCoreRepository : ICommentRepository
             .Take(pageSize)
             .Select(c => new CommentResponseDto
             {
-                userSimlified = new UserSimlified
+                UserSimplified = new UserSimplified
                 {
                     Id = c.User.Id,
                     UserName = c.User.UserName,
@@ -144,4 +143,5 @@ public class CommentEfCoreRepository : ICommentRepository
             .Where(c => c.ReviewId == reviewId)
             .CountAsync();
     }
+
 }

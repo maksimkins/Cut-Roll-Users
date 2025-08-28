@@ -89,4 +89,12 @@ public class ListMovieEfCoreRepository : IListMovieRepository
             .Where(lm => lm.ListId == listId)
             .CountAsync();
     }
+
+    public async Task<bool> IsListOwnedByUserAsync(Guid listId, string userId)
+    {
+        return await _context.ListMovies
+            .Include(lm => lm.List)
+            .Where(lm => lm.ListId == listId && lm.List.UserId == userId)
+            .AnyAsync();
+    }
 }

@@ -1,5 +1,4 @@
 using Cut_Roll_Users.Core.Common.Dtos;
-using Cut_Roll_Users.Core.Common.Repositories.Base;
 using Cut_Roll_Users.Core.Movies.Dtos;
 using Cut_Roll_Users.Core.MovieImages.Enums;
 using Cut_Roll_Users.Core.WantToWatchFilms.Dtos;
@@ -60,7 +59,7 @@ public class WantToWatchFilmEfCoreRepository : IWantToWatchFilmRepository
             .CountAsync();
     }
 
-    public async Task<PagedResult<MovieSimplifiedDto>> GetWantToWatchMoviesAsync(WantToWatchFilmPaginationUserDto dto)
+    public async Task<PagedResult<MovieSimplifiedDto>> GetByUserIdAsync(WantToWatchFilmPaginationUserDto dto)
     {
         var query = _context.WantToWatchMovies
             .Include(w => w.Movie)
@@ -92,4 +91,12 @@ public class WantToWatchFilmEfCoreRepository : IWantToWatchFilmRepository
             PageSize = pageSize
         };
     }
+
+
+    public async Task<bool> IsMovieInWantToWatchByUserAsync(string userId, Guid movieId)
+    {
+        return await _context.WantToWatchMovies
+            .AnyAsync(w => w.UserId == userId && w.MovieId == movieId);
+    }
+
 }

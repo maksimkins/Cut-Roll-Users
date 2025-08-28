@@ -2,6 +2,7 @@ using Cut_Roll_Users.Core.Common.Dtos;
 using Cut_Roll_Users.Core.Follows.Dtos;
 using Cut_Roll_Users.Core.Follows.Repositories;
 using Cut_Roll_Users.Core.Follows.Services;
+using Cut_Roll_Users.Core.Users.Dtos;
 
 namespace Cut_Roll_Users.Infrastructure.Follows.Services;
 
@@ -73,7 +74,7 @@ public class FollowService : IFollowService
         return await DeleteFollowAsync(dto);
     }
 
-    public async Task<PagedResult<FollowResponseDto>> GetUserFollowsAsync(FollowPaginationDto? dto)
+    public async Task<PagedResult<UserSimplified>> GetUserFollowsAsync(FollowPaginationDto? dto)
     {
         if (dto == null)
             throw new ArgumentNullException(nameof(dto), "Pagination data cannot be null.");
@@ -132,4 +133,5 @@ public class FollowService : IFollowService
 
         return await _followRepository.GetUserFeedAsync(dto);
     }
+
 }
