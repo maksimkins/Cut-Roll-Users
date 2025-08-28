@@ -1,4 +1,5 @@
 using Cut_Roll_Users.Core.Common.Dtos;
+using Cut_Roll_Users.Core.Common.Services;
 using Cut_Roll_Users.Core.Reviews.Dtos;
 using Cut_Roll_Users.Core.Reviews.Repositories;
 using Cut_Roll_Users.Core.Reviews.Services;
@@ -8,10 +9,12 @@ namespace Cut_Roll_Users.Infrastructure.Reviews.Services;
 public class ReviewService : IReviewService
 {
     private readonly IReviewRepository _reviewRepository;
+    IMessageBrokerService _messageBrokerService;
 
-    public ReviewService(IReviewRepository reviewRepository)
+    public ReviewService(IReviewRepository reviewRepository, IMessageBrokerService messageBrokerService)
     {
         _reviewRepository = reviewRepository;
+        _messageBrokerService = messageBrokerService;
     }
 
     public async Task<Guid> CreateReviewAsync(ReviewCreateDto? reviewCreateDto)
@@ -31,8 +34,17 @@ public class ReviewService : IReviewService
         if (reviewCreateDto.Rating < 0 || reviewCreateDto.Rating > 5)
             throw new ArgumentException("Rating must be between 0 and 5.", nameof(reviewCreateDto.Rating));
 
-        var result = await _reviewRepository.CreateAsync(reviewCreateDto);
-        return result ?? throw new InvalidOperationException("Failed to create review.");
+        var result = await _reviewRepository.CreateAsync(reviewCreateDto)
+            ?? throw new InvalidOperationException("Failed to create review.");
+
+        var ratingAverage = await _reviewRepository.GetAverageRatingByMovieIdAsync(reviewCreateDto.MovieId);
+        await _messageBrokerService.PushAsync("movie_update_rating_news", new
+        {
+            MovieId = reviewCreateDto.MovieId,
+            RatingAverage = ratingAverage,
+            
+        });
+        return result; 
     }
 
     public async Task<ReviewResponseDto?> GetReviewByIdAsync(Guid? reviewId)
@@ -54,11 +66,20 @@ public class ReviewService : IReviewService
         if (reviewUpdateDto.Rating.HasValue && (reviewUpdateDto.Rating.Value < 0 || reviewUpdateDto.Rating.Value > 5))
             throw new ArgumentException("Rating must be between 0 and 5.", nameof(reviewUpdateDto.Rating));
 
-        var result = await _reviewRepository.UpdateAsync(reviewUpdateDto);
-        if (result == null)
-            throw new InvalidOperationException($"Review not found for ID: {reviewUpdateDto.Id}");
-        
-        return result.Value;
+        var result = await _reviewRepository.UpdateAsync(reviewUpdateDto)
+            ?? throw new InvalidOperationException("Failed to create review.");
+
+        var reviewUpdated = await _reviewRepository.GetByIdAsync(reviewUpdateDto.Id)
+            ?? throw new Exception("smth went wrong with reviews");
+
+        var ratingAverage = await _reviewRepository.GetAverageRatingByMovieIdAsync(reviewUpdated.MovieId);
+        await _messageBrokerService.PushAsync("movie_update_rating_news", new
+        {
+            MovieId = reviewUpdated.MovieId,
+            RatingAverage = ratingAverage,
+            
+        });
+        return result; 
     }
 
     public async Task<Guid> DeleteReviewByIdAsync(Guid? reviewId)
@@ -66,9 +87,22 @@ public class ReviewService : IReviewService
         if (!reviewId.HasValue || reviewId.Value == Guid.Empty)
             throw new ArgumentException("Review ID cannot be null or empty.", nameof(reviewId));
 
+        var reviewToDelete = await _reviewRepository.GetByIdAsync(reviewId.Value)
+            ?? throw new Exception("smth went wrong with reviews");
+
+        var movieId = reviewToDelete.MovieId;
+        var ratingAverage = await _reviewRepository.GetAverageRatingByMovieIdAsync(movieId);
+
         var result = await _reviewRepository.DeleteByIdAsync(reviewId.Value);
         if (result == null)
             throw new InvalidOperationException($"Review not found for ID: {reviewId.Value}");
+
+        await _messageBrokerService.PushAsync("movie_update_rating_news", new
+        {
+            MovieId = movieId,
+            RatingAverage = ratingAverage,
+            
+        });
         
         return result.Value;
     }
