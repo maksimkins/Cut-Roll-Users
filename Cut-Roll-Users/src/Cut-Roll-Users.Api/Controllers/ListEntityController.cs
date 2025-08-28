@@ -113,6 +113,20 @@ public class ListEntityController : ControllerBase
         catch (Exception ex) { return this.InternalServerError(ex.Message); }
     }
 
+    [HttpPost("movies")]
+    public async Task<IActionResult> GetMoviesFromList([FromBody] ListEntityGetByIdDto? dto)
+    {
+        try
+        {
+            var result = await _listEntityService.GetMoviesFromListAsync(dto);
+            return Ok(result);
+        }
+        catch (ArgumentNullException ex) { return BadRequest(ex.Message); }
+        catch (ArgumentException ex) { return NotFound(ex.Message); }
+        catch (InvalidOperationException ex) { return Conflict(ex.Message); }
+        catch (Exception ex) { return this.InternalServerError(ex.Message); }
+    }
+
     [HttpGet("count/{userId}")]
     public async Task<IActionResult> GetListCountByUserId([FromRoute] string? userId)
     {
