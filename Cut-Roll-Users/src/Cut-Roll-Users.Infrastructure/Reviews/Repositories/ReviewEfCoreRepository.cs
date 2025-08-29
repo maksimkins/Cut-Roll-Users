@@ -31,7 +31,7 @@ public class ReviewEfCoreRepository : IReviewRepository
 
         _context.Reviews.Add(review);
         var result = await _context.SaveChangesAsync();
-        
+
         if (result > 0)
         {
             var movie = await _context.Movies
@@ -83,15 +83,15 @@ public class ReviewEfCoreRepository : IReviewRepository
     {
         var review = await _context.Reviews
             .FirstOrDefaultAsync(r => r.Id == entity.Id);
-        
+
         if (review == null) return null;
 
         if (entity.Content != null)
             review.Content = entity.Content;
-        
+
         if (entity.Rating.HasValue)
             review.Rating = entity.Rating.Value;
-        
+
         var result = await _context.SaveChangesAsync();
         return result > 0 ? review.Id : null;
     }
@@ -100,12 +100,12 @@ public class ReviewEfCoreRepository : IReviewRepository
     {
         var review = await _context.Reviews
             .FirstOrDefaultAsync(r => r.Id == id);
-        
+
         if (review == null) return null;
 
         _context.Reviews.Remove(review);
         var result = await _context.SaveChangesAsync();
-        
+
         return result > 0 ? review.Id : null;
     }
 
@@ -248,4 +248,95 @@ public class ReviewEfCoreRepository : IReviewRepository
         var review = await _context.Reviews.Where(r => r.Id == reviewId).FirstOrDefaultAsync();
         return review?.UserId == userId;
     }
+
+    public async Task<PagedResult<ReviewResponseDto>> SearchAsync(ReviewSearchDto request)
+    {
+        var query = _context.Reviews
+            .Include(r => r.User)
+            .Include(r => r.Movie)
+            .Include(r => r.Likes)
+            .Include(r => r.Comments)
+            .AsQueryable();
+
+
+        if (!string.IsNullOrWhiteSpace(request.UserId))
+        {
+            query = query.Where(r => r.UserId == request.UserId);
+        }
+
+        if (request.MovieId != null && request.MovieId == Guid.Empty)
+        {
+            query = query.Where(r => r.MovieId == request.MovieId);
+        }
+
+        if (request.MinRating.HasValue)
+        {
+            query = query.Where(r => r.Rating >= request.MinRating.Value);
+        }
+
+        if (request.MaxRating.HasValue)
+        {
+            query = query.Where(r => r.Rating <= request.MaxRating.Value);
+        }
+
+        if (request.CreatedAfter.HasValue)
+        {
+            query = query.Where(r => r.CreatedAt >= request.CreatedAfter.Value);
+        }
+
+        if (request.CreatedBefore.HasValue)
+        {
+            query = query.Where(r => r.CreatedAt <= request.CreatedBefore.Value);
+        }
+
+
+        query = request.SortBy switch
+        {
+            ReviewSortBy.Rating => request.SortDescending
+                ? query.OrderByDescending(r => r.Rating)
+                : query.OrderBy(r => r.Rating),
+
+            ReviewSortBy.Likes => request.SortDescending
+                ? query.OrderByDescending(r => r.Likes.Count)
+                : query.OrderBy(r => r.Likes.Count),
+
+            ReviewSortBy.CreatedAt or _ => request.SortDescending
+                ? query.OrderByDescending(r => r.CreatedAt)
+                : query.OrderBy(r => r.CreatedAt),
+        };
+
+        var totalCount = await query.CountAsync();
+        var page = request.Page <= 0 ? 1 : request.Page;
+        var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
+
+        var reviews = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(r => new ReviewResponseDto
+            {
+                Id = r.Id,
+                UserSimplified = new UserSimplified
+                {
+                    Id = r.User.Id,
+                    UserName = r.User.UserName,
+                    Email = r.User.Email,
+                    AvatarPath = r.User.AvatarPath
+                },
+                MovieId = r.MovieId,
+                Content = r.Content,
+                Rating = r.Rating, 
+                CreatedAt = r.CreatedAt,
+                LikesCount = r.Likes.Count,
+                CommentsCount = r.Comments.Count
+            }).ToListAsync();
+
+        return new PagedResult<ReviewResponseDto>
+        {
+            Data = reviews,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+        
 }

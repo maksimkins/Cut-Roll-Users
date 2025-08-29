@@ -14,4 +14,5 @@ public interface IReviewService
     Task<PagedResult<ReviewResponseDto>> GetReviewsByUserIdAsync(ReviewPaginationUserDto dto);
     Task<double> GetAverageRatingByMovieIdAsync(Guid? movieId);
     Task<int> GetReviewCountByMovieIdAsync(Guid? movieId);
+    Task<PagedResult<ReviewResponseDto>> SearchReviewAsync(ReviewSearchDto dto);
 }

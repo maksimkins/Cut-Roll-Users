@@ -8,7 +8,7 @@ public class ReviewResponseDto
     public required UserSimplified UserSimplified { get; set; }
     public required Guid MovieId { get; set; }
     public required string Content { get; set; }
-    public int Rating { get; set; }
+    public float Rating { get; set; }
     public DateTime CreatedAt { get; set; }
     public int LikesCount { get; set; }
     public int CommentsCount { get; set; }

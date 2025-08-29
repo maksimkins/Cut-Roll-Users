@@ -155,4 +155,15 @@ public class ReviewService : IReviewService
 
         return await _reviewRepository.GetReviewCountByMovieIdAsync(movieId.Value);
     }
+
+    public async Task<PagedResult<ReviewResponseDto>> SearchReviewAsync(ReviewSearchDto dto)
+    {
+        if (dto == null)
+            throw new ArgumentNullException(nameof(dto), "Pagination data cannot be null.");
+
+        dto.Page = dto.Page > 0 ? dto.Page : 1; 
+        dto.PageSize = dto.Page > 0 ? dto.PageSize : 10;
+        
+        return await _reviewRepository.SearchAsync(dto);
+    }
 }

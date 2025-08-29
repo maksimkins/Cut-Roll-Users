@@ -8,7 +8,8 @@ public interface IReviewRepository :
     ICreateAsync<ReviewCreateDto, Guid?>,
     IGetByIdAsync<Guid, ReviewResponseDto?>,
     IUpdateAsync<ReviewUpdateDto, Guid?>,
-    IDeleteByIdAsync<Guid, Guid?>
+    IDeleteByIdAsync<Guid, Guid?>,
+    ISearchAsync<ReviewSearchDto, PagedResult<ReviewResponseDto>>
 {
     Task<ReviewResponseDto?> GetByUserAndMovieAsync(string userId, Guid movieId);
     Task<PagedResult<ReviewResponseDto>> GetByMovieIdAsync(ReviewPaginationMovieDto dto);

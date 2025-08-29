@@ -19,7 +19,6 @@ public interface IUserRepository :
     Task<string?> UpdateAvatarAsync(UserUpdateAvatarDto dto);
     Task<IQueryable<User>> GetUsersAsQueryableAsync();
     
-    // User activity methods
     Task<int> GetUserReviewCountAsync(string userId);
     Task<int> GetUserWatchedCountAsync(string userId);
     Task<int> GetUserMovieLikeCountAsync(string userId);

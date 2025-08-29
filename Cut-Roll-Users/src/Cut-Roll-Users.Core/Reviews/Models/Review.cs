@@ -14,7 +14,6 @@ public class Review
     public float Rating { get; set; } // 0-5
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    // Navigation
     public User User { get; set; } = null!;
     public Movie Movie { get; set; } = null!;
     public ICollection<ReviewLike> Likes { get; set; } = [];

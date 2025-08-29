@@ -18,6 +18,20 @@ public class ReviewController : ControllerBase
         _reviewService = reviewService;
     }
 
+    [HttpPost("search")]
+    public async Task<IActionResult> Search([FromBody] ReviewSearchDto request)
+    {
+        try
+        {
+            var result = await _reviewService.SearchReviewAsync(request);
+            return Ok(result);
+        }
+        catch (ArgumentNullException ex) { return BadRequest(ex.Message); }
+        catch (ArgumentException ex) { return NotFound(ex.Message); }
+        catch (InvalidOperationException ex) { return Conflict(ex.Message); }
+        catch (Exception ex) { return this.InternalServerError(ex.Message); }
+    }
+
     [Authorize]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] ReviewCreateDto? reviewCreateDto)
