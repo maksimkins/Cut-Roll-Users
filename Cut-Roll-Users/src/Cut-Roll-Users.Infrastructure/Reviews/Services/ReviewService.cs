@@ -31,8 +31,12 @@ public class ReviewService : IReviewService
         if (string.IsNullOrWhiteSpace(reviewCreateDto.Content))
             throw new ArgumentException("Content cannot be null or empty.", nameof(reviewCreateDto.Content));
         
-        if (reviewCreateDto.Rating < 0 || reviewCreateDto.Rating > 5)
+        if ((reviewCreateDto.Rating < 0 || reviewCreateDto.Rating > 5) && reviewCreateDto.Rating % 0.5 != 0)
             throw new ArgumentException("Rating must be between 0 and 5.", nameof(reviewCreateDto.Rating));
+
+        var found = await _reviewRepository.GetByUserAndMovieAsync(reviewCreateDto.UserId, reviewCreateDto.MovieId);
+        if (found != null)
+            throw new ArgumentException("cannot create review, its already exists");
 
         var result = await _reviewRepository.CreateAsync(reviewCreateDto)
             ?? throw new InvalidOperationException("Failed to create review.");
@@ -63,8 +67,12 @@ public class ReviewService : IReviewService
         if (reviewUpdateDto.Id == Guid.Empty)
             throw new ArgumentException("Review ID cannot be empty.", nameof(reviewUpdateDto.Id));
         
-        if (reviewUpdateDto.Rating.HasValue && (reviewUpdateDto.Rating.Value < 0 || reviewUpdateDto.Rating.Value > 5))
+        if (reviewUpdateDto.Rating.HasValue && (reviewUpdateDto.Rating.Value < 0 || reviewUpdateDto.Rating.Value > 5) && reviewUpdateDto.Rating % 0.5 != 0)
             throw new ArgumentException("Rating must be between 0 and 5.", nameof(reviewUpdateDto.Rating));
+
+        var found = await _reviewRepository.GetByIdAsync(reviewUpdateDto.Id);
+        if (found == null)
+            throw new ArgumentException("cannot find review to update");
 
         var result = await _reviewRepository.UpdateAsync(reviewUpdateDto)
             ?? throw new InvalidOperationException("Failed to create review.");

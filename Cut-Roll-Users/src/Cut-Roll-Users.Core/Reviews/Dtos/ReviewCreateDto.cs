@@ -5,5 +5,5 @@ public class ReviewCreateDto
     public required string UserId { get; set; }
     public required Guid MovieId { get; set; }
     public required string Content { get; set; }
-    public int Rating { get; set; }
+    public float Rating { get; set; }
 }
