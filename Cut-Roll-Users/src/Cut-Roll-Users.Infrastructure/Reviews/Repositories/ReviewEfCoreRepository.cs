@@ -72,7 +72,7 @@ public class ReviewEfCoreRepository : IReviewRepository
             },
             MovieId = review.MovieId,
             Content = review.Content,
-            Rating = (int)review.Rating,
+            Rating = review.Rating,
             CreatedAt = review.CreatedAt,
             LikesCount = review.Likes.Count,
             CommentsCount = review.Comments.Count
@@ -131,7 +131,7 @@ public class ReviewEfCoreRepository : IReviewRepository
             },
             MovieId = review.MovieId,
             Content = review.Content,
-            Rating = (int)review.Rating,
+            Rating = review.Rating,
             CreatedAt = review.CreatedAt,
             LikesCount = review.Likes.Count,
             CommentsCount = review.Comments.Count
@@ -167,7 +167,7 @@ public class ReviewEfCoreRepository : IReviewRepository
                 },
                 MovieId = r.MovieId,
                 Content = r.Content,
-                Rating = (int)r.Rating,
+                Rating = r.Rating,
                 CreatedAt = r.CreatedAt,
                 LikesCount = r.Likes.Count,
                 CommentsCount = r.Comments.Count
@@ -212,7 +212,7 @@ public class ReviewEfCoreRepository : IReviewRepository
                 },
                 MovieId = r.MovieId,
                 Content = r.Content,
-                Rating = (int)r.Rating,
+                Rating = r.Rating,
                 CreatedAt = r.CreatedAt,
                 LikesCount = r.Likes.Count,
                 CommentsCount = r.Comments.Count
