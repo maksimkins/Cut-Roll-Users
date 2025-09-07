@@ -14,4 +14,6 @@ public interface IMovieProductionCompanyService
     Task<PagedResult<MovieSimplifiedDto>> GetMoviesByCompanyIdAsync(MovieSearchByCompanyDto? movieSearchByCompanyDto);
     Task<bool> BulkCreateMovieProductionCompanyAsync(IEnumerable<MovieProductionCompanyDto>? toCreate);
     Task<bool> BulkDeleteMovieProductionCompanyAsync(IEnumerable<MovieProductionCompanyDto>? toDelete);
+    Task<List<ProductionCompany>> GetProductionCompaniesByMovieIdsAsync(List<Guid> movieIds);
+    Task<List<ProductionCompany>> GetProductionCompaniesByMovieIdAsync(Guid movieId);
 }

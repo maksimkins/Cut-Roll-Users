@@ -1,6 +1,7 @@
 namespace Cut_Roll_Users.Core.Casts.Repositories;
 
 using Cut_Roll_Users.Core.Casts.Dtos;
+using Cut_Roll_Users.Core.Casts.Models;
 using Cut_Roll_Users.Core.Common.Dtos;
 using Cut_Roll_Users.Core.Common.Repositories.Base;
 
@@ -11,4 +12,6 @@ public interface ICastRepository : IUpdateAsync<CastUpdateDto, Guid?>, IDeleteBy
     public Task<PagedResult<CastGetDto>> GetByMovieIdAsync(CastGetByMovieIdDto dto);
     public Task<PagedResult<CastGetDto>> GetByPersonIdAsync(CastGetByPersonIdDto dto);
     public Task<bool> ExistsByIdAsync(Guid id);
+    Task<List<Cast>> GetCastByMovieIdsAsync(List<Guid> movieIds);
+    Task<List<Cast>> GetCastByMovieIdAsync(Guid movieId);
 }

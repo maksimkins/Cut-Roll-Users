@@ -12,4 +12,6 @@ IDeleteRangeById<Guid, bool>, IBulkCreateAsync<MovieProductionCompanyDto, bool>,
     Task<IEnumerable<ProductionCompany>> GetCompaniesByMovieIdAsync(Guid movieId);
     Task<PagedResult<MovieSimplifiedDto>> GetMoviesByCompanyIdAsync(MovieSearchByCompanyDto movieSearchByCompanyDto);
     Task<bool> ExistsAsync(MovieProductionCompanyDto dto);
+    Task<List<ProductionCompany>> GetProductionCompaniesByMovieIdsAsync(List<Guid> movieIds);
+    Task<List<ProductionCompany>> GetProductionCompaniesByMovieIdAsync(Guid movieId);
 }

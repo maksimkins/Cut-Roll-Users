@@ -12,4 +12,5 @@ public interface IMovieGenreRepository : ICreateAsync<MovieGenreDto, Guid?>, IDe
     Task<IEnumerable<Genre>> GetGenresByMovieIdAsync(Guid movieId);
     Task<PagedResult<MovieSimplifiedDto>> GetMoviesByGenreIdAsync(MovieSearchByGenreDto searchDto);
     Task<bool> ExistsAsync(MovieGenreDto dto);
+    Task<List<Genre>> GetGenresByMovieIdsAsync(List<Guid> movieIds);
 }

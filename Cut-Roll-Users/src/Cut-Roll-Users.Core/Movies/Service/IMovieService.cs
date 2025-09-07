@@ -12,8 +12,8 @@ public interface IMovieService
     Task<Guid> DeleteMovieByIdAsync(Guid? id);
     Task<Guid> CreateMovieAsync(MovieCreateDto? dto);
     Task<int> CountMoviesAsync();
-    
-    // Movie activity methods
+
+
     Task<int> GetMovieReviewCountAsync(Guid? movieId);
     Task<int> GetMovieWatchedCountAsync(Guid? movieId);
     Task<int> GetMovieLikeCountAsync(Guid? movieId);
@@ -22,5 +22,13 @@ public interface IMovieService
     Task<bool> IsMovieWatchedByUserAsync(Guid? movieId, string? userId);
     Task<bool> IsMovieLikedByUserAsync(Guid? movieId, string? userId);
     Task<bool> IsMovieInUserWantToWatchAsync(Guid? movieId, string? userId);
+    
+    Task<List<Movie>> GetMoviesWithPaginationAsync(int offset, int limit);
+    Task<List<Movie>> GetLikedMoviesByUserIdAsync(Guid userId);
+    Task<List<Movie>> GetWatchedMoviesByUserIdAsync(Guid userId);
+    Task<List<Movie>> GetMoviesWithoutEmbeddingsAsync(int offset, int limit);
+    Task<int> GetMoviesWithoutEmbeddingsCountAsync();
+    Task<bool> MarkMovieAsEmbeddedAsync(Guid movieId);
+    Task<bool> MarkMovieAsNotEmbeddedAsync(Guid movieId);
 }
 

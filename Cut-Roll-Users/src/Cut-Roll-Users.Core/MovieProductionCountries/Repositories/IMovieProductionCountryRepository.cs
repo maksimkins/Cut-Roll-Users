@@ -14,4 +14,6 @@ IDeleteRangeById<Guid, bool>, IBulkCreateAsync<MovieProductionCountryDto, bool>,
     Task<bool> ExistsAsync(MovieProductionCountryDto dto);
     Task<PagedResult<MovieSimplifiedDto>> GetMoviesByCountryIdAsync(MovieSearchByCountryDto movieSearchByCountryDto);
     Task<IEnumerable<Country>> GetCountriesByMovieIdAsync(Guid movieId);
+    Task<List<Country>> GetProductionCountriesByMovieIdsAsync(List<Guid> movieIds);
+    Task<List<Country>> GetProductionCountriesByMovieIdAsync(Guid movieId);
 }

@@ -12,8 +12,9 @@ public interface IMovieGenreService
     Task<bool> DeleteMovieGenreRangeByMovieId(Guid? movieId);
     Task<IEnumerable<Genre>> GetGenresByMovieIdAsync(Guid? movieId);
     Task<PagedResult<MovieSimplifiedDto>> GetMoviesByGenreIdAsync(MovieSearchByGenreDto? dto);
-    public Task<bool> BulkCreateMovieGenreAsync(IEnumerable<MovieGenreDto>? toCreate);
-    public Task<bool> BulkDeleteMovieGenreAsync(IEnumerable<MovieGenreDto>? toDelete);
+    Task<bool> BulkCreateMovieGenreAsync(IEnumerable<MovieGenreDto>? toCreate);
+    Task<bool> BulkDeleteMovieGenreAsync(IEnumerable<MovieGenreDto>? toDelete);
+    Task<List<Genre>> GetGenresByMovieIdsAsync(List<Guid> movieIds);
 }
 
 

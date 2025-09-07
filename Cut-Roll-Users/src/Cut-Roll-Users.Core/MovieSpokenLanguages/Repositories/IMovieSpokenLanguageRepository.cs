@@ -12,4 +12,6 @@ IDeleteRangeById<Guid, bool>, IBulkCreateAsync<MovieSpokenLanguageDto, bool>, IB
     Task<IEnumerable<SpokenLanguage>> GetSpokenLanguagesByMovieIdAsync(Guid movieId);
     Task<bool> ExistsAsync(MovieSpokenLanguageDto dto);
     Task<PagedResult<MovieSimplifiedDto>> GetMoviesBySpokenLanguageIdAsync(MovieSearchBySpokenLanguageDto movieSearchByCountryDto);
+    Task<List<SpokenLanguage>> GetSpokenLanguagesByMovieIdsAsync(List<Guid> movieIds);
+
 }

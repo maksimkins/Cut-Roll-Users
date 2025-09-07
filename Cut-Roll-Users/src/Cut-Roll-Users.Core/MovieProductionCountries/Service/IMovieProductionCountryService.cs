@@ -14,6 +14,8 @@ public interface IMovieProductionCountryService
     Task<IEnumerable<Country>> GetCountriesByMovieIdAsync(Guid? movieId);
     Task<bool> BulkCreateMovieProductionCountryAsync(IEnumerable<MovieProductionCountryDto>? toCreate);
     Task<bool> BulkDeleteMovieProductionCountryAsync(IEnumerable<MovieProductionCountryDto>? toDelete);
+    Task<List<Country>> GetProductionCountriesByMovieIdsAsync(List<Guid> movieIds);
+    Task<List<Country>> GetProductionCountriesByMovieIdAsync(Guid movieId);
 }
 
 

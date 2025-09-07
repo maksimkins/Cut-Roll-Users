@@ -2,6 +2,7 @@ namespace Cut_Roll_Users.Core.Crews.Services;
 
 using Cut_Roll_Users.Core.Common.Dtos;
 using Cut_Roll_Users.Core.Crews.Dtos;
+using Cut_Roll_Users.Core.Crews.Models;
 
 public interface ICrewService
 {
@@ -14,6 +15,8 @@ public interface ICrewService
     public Task<bool> BulkDeleteCrewAsync(IEnumerable<Guid>? idsToDelete);
     public Task<PagedResult<CrewGetDto>> GetCrewByPersonIdAsync(CrewGetByPersonId? dto);
     public Task<bool> DeleteCrewRangeByMovieIdAsync(Guid? movieId);
+    Task<List<Crew>> GetCrewByMovieIdsAsync(List<Guid> movieIds);
+    Task<List<Crew>> GetCrewByMovieIdAsync(Guid movieId);
 }
 
 
