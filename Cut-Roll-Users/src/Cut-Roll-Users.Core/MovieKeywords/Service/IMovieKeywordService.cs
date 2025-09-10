@@ -14,6 +14,7 @@ public interface IMovieKeywordService
     Task<PagedResult<MovieSimplifiedDto>> GetMoviesByKeywordIdAsync(MovieSearchByKeywordDto? searchDto);
     Task<bool> BulkCreateMovieKeywordAsync(IEnumerable<MovieKeywordDto>? toCreate);
     Task<bool> BulkDeleteMovieKeywordAsync(IEnumerable<MovieKeywordDto>? toDelete);
+    Task<List<Keyword>> GetKeywordsByMovieIdsAsync(List<Guid> movieIds);
 }
 
 

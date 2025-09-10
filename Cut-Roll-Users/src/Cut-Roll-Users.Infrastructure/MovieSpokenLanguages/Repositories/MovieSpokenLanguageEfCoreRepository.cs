@@ -140,4 +140,14 @@ public class MovieSpokenLanguageEfCoreRepository : IMovieSpokenLanguageRepositor
         return await _dbContext.MovieSpokenLanguages.Where(g => g.MovieId == movieId).
             Include(g => g.Language).Select(g => g.Language).ToListAsync();
     }
+
+    public async Task<List<SpokenLanguage>> GetSpokenLanguagesByMovieIdsAsync(List<Guid> movieIds)
+    {
+        return await _dbContext.MovieSpokenLanguages
+            .Where(msl => movieIds.Contains(msl.MovieId))
+            .Include(msl => msl.Language)
+            .Select(msl => msl.Language)
+            .Distinct()
+            .ToListAsync();
+    }
 }

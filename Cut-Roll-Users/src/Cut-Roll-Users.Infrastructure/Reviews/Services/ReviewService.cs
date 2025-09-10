@@ -80,10 +80,10 @@ public class ReviewService : IReviewService
         var reviewUpdated = await _reviewRepository.GetByIdAsync(reviewUpdateDto.Id)
             ?? throw new Exception("smth went wrong with reviews");
 
-        var ratingAverage = await _reviewRepository.GetAverageRatingByMovieIdAsync(reviewUpdated.MovieId);
+        var ratingAverage = await _reviewRepository.GetAverageRatingByMovieIdAsync(reviewUpdated.MovieSimplified.MovieId);
         await _messageBrokerService.PushAsync("movie_update_rating_news", new
         {
-            MovieId = reviewUpdated.MovieId,
+            MovieId = reviewUpdated.MovieSimplified.MovieId,
             RatingAverage = ratingAverage,
             
         });
@@ -98,7 +98,7 @@ public class ReviewService : IReviewService
         var reviewToDelete = await _reviewRepository.GetByIdAsync(reviewId.Value)
             ?? throw new Exception("smth went wrong with reviews");
 
-        var movieId = reviewToDelete.MovieId;
+        var movieId = reviewToDelete.MovieSimplified.MovieId;
         var ratingAverage = await _reviewRepository.GetAverageRatingByMovieIdAsync(movieId);
 
         var result = await _reviewRepository.DeleteByIdAsync(reviewId.Value);
@@ -173,5 +173,16 @@ public class ReviewService : IReviewService
         dto.PageSize = dto.Page > 0 ? dto.PageSize : 10;
         
         return await _reviewRepository.SearchAsync(dto);
+    }
+
+    public async Task<bool> IsReviewOwnedByUserAsync(Guid? reviewId, string? userId)
+    {
+        if (!reviewId.HasValue || reviewId.Value == Guid.Empty)
+            throw new ArgumentException("Review ID cannot be null or empty.", nameof(reviewId));
+        
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentException("User ID cannot be null or empty.", nameof(userId));
+
+        return await _reviewRepository.IsReviewOwnedByUserAsync(reviewId.Value, userId);
     }
 }

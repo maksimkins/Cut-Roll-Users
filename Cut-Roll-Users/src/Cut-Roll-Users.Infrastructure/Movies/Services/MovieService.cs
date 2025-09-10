@@ -1,5 +1,6 @@
 namespace Cut_Roll_Users.Infrastructure.Movies.Services;
 
+using System.Collections.Generic;
 using Cut_Roll_Users.Core.Casts.Repositories;
 using Cut_Roll_Users.Core.Common.Dtos;
 using Cut_Roll_Users.Core.Crews.Repositories;
@@ -60,14 +61,36 @@ public class MovieService : IMovieService
         return await _movieRepository.CountAsync();
     }
 
-    public Task<Guid> CreateMovieAsync(MovieCreateDto? dto)
+    public async Task<Guid> CreateMovieAsync(MovieCreateDto? dto)
     {
-        throw new NotImplementedException();
+        if (dto == null)
+            throw new ArgumentNullException(nameof(dto));
+
+        var movieId = await _movieRepository.CreateAsync(dto);
+        if (movieId == null)
+            throw new InvalidOperationException("Movie creation failed.");
+
+        return movieId.Value;
     }
 
-    public Task<Guid> DeleteMovieByIdAsync(Guid? id)
+    public async Task<Guid> DeleteMovieByIdAsync(Guid? id)
     {
-        throw new NotImplementedException();
+        if (id == null || id == Guid.Empty)
+            throw new ArgumentNullException(nameof(id));
+
+        var movieId = await _movieRepository.DeleteByIdAsync(id.Value);
+        if (movieId == null)
+            throw new InvalidOperationException("Movie not found or deletion failed.");
+
+        return movieId.Value;
+    }
+
+    public async Task<List<Movie>> GetLikedMoviesByUserIdAsync(string? userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentNullException(nameof(userId));
+
+        return await _movieRepository.GetLikedMoviesByUserIdAsync(userId);
     }
 
     public async Task<double> GetMovieAverageRatingAsync(Guid? id)
@@ -102,6 +125,21 @@ public class MovieService : IMovieService
         return await _movieRepository.GetMovieReviewCountAsync(movieId.Value);
     }
 
+    public async Task<List<Movie>> GetMoviesWithoutEmbeddingsAsync(int offset, int limit)
+    {
+        return await _movieRepository.GetMoviesWithoutEmbeddingsAsync(offset, limit);
+    }
+
+    public async Task<int> GetMoviesWithoutEmbeddingsCountAsync()
+    {
+        return await _movieRepository.GetMoviesWithoutEmbeddingsCountAsync();
+    }
+
+    public async Task<List<Movie>> GetMoviesWithPaginationAsync(int offset, int limit)
+    {
+        return await _movieRepository.GetMoviesWithPaginationAsync(offset, limit);
+    }
+
     public async Task<int> GetMovieWantToWatchCountAsync(Guid? movieId)
     {
         if (movieId == null || movieId == Guid.Empty)
@@ -116,6 +154,54 @@ public class MovieService : IMovieService
             throw new ArgumentNullException(nameof(movieId));
 
         return await _movieRepository.GetMovieWatchedCountAsync(movieId.Value);
+    }
+
+    public async Task<List<Movie>> GetWatchedMoviesByUserIdAsync(string? userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentNullException(nameof(userId));
+
+        return await _movieRepository.GetWatchedMoviesByUserIdAsync(userId);
+    }
+
+    public async Task<List<Movie>> GetLikedMoviesByUserIdAsync(string? userId, int offset, int limit)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentNullException(nameof(userId));
+        if (offset < 0)
+            throw new ArgumentException("Offset cannot be negative.", nameof(offset));
+        if (limit <= 0)
+            throw new ArgumentException("Limit must be positive.", nameof(limit));
+
+        return await _movieRepository.GetLikedMoviesByUserIdAsync(userId, offset, limit);
+    }
+
+    public async Task<List<Movie>> GetWatchedMoviesByUserIdAsync(string? userId, int offset, int limit)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentNullException(nameof(userId));
+        if (offset < 0)
+            throw new ArgumentException("Offset cannot be negative.", nameof(offset));
+        if (limit <= 0)
+            throw new ArgumentException("Limit must be positive.", nameof(limit));
+
+        return await _movieRepository.GetWatchedMoviesByUserIdAsync(userId, offset, limit);
+    }
+
+    public async Task<int> GetLikedMoviesCountByUserIdAsync(string? userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentNullException(nameof(userId));
+
+        return await _movieRepository.GetLikedMoviesCountByUserIdAsync(userId);
+    }
+
+    public async Task<int> GetWatchedMoviesCountByUserIdAsync(string? userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentNullException(nameof(userId));
+
+        return await _movieRepository.GetWatchedMoviesCountByUserIdAsync(userId);
     }
 
     public async Task<bool> IsMovieInUserWantToWatchAsync(Guid? movieId, string? userId)
@@ -148,6 +234,16 @@ public class MovieService : IMovieService
         return await _movieRepository.IsMovieWatchedByUserAsync(movieId.Value, userId);
     }
 
+    public async Task<bool> MarkMovieAsEmbeddedAsync(Guid movieId)
+    {
+        return await _movieRepository.MarkMovieAsEmbeddedAsync(movieId);
+    }
+
+    public async Task<bool> MarkMovieAsNotEmbeddedAsync(Guid movieId)
+    {
+        return await _movieRepository.MarkMovieAsNotEmbeddedAsync(movieId);
+    }
+
     public async Task<PagedResult<MovieSimplifiedDto>> SearchMovieAsync(MovieSearchRequest? dto)
     {
         if (dto == null)
@@ -163,5 +259,13 @@ public class MovieService : IMovieService
 
         return await _movieRepository.UpdateAsync(dto)
             ?? throw new InvalidOperationException("Movie update failed.");
+    }
+
+    public async Task<string?> GetMoviePosterPathAsync(Guid movieId)
+    {
+        if (movieId == Guid.Empty)
+            throw new ArgumentNullException(nameof(movieId));
+            
+        return await _movieRepository.GetMoviePosterPathAsync(movieId);
     }
 }

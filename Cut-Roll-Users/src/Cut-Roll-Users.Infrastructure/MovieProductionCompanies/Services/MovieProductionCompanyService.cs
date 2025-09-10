@@ -125,5 +125,28 @@ public class MovieProductionCompanyService : IMovieProductionCompanyService
 
         return await _movieProductionCompanyRepository.GetMoviesByCompanyIdAsync(dto);
     }
+
+    public async Task<List<ProductionCompany>> GetProductionCompaniesByMovieIdsAsync(List<Guid> movieIds)
+    {
+        if (movieIds == null || !movieIds.Any())
+            throw new ArgumentNullException(nameof(movieIds));
+
+        foreach (var movieId in movieIds)
+        {
+            if (movieId == Guid.Empty)
+                throw new ArgumentException("One or more movie IDs are invalid");
+        }
+
+        return await _movieProductionCompanyRepository.GetProductionCompaniesByMovieIdsAsync(movieIds);
+    }
+
+    public async Task<List<ProductionCompany>> GetProductionCompaniesByMovieIdAsync(Guid movieId)
+    {
+        if (movieId == Guid.Empty)
+            throw new ArgumentException(nameof(movieId));
+
+        var result = await _movieProductionCompanyRepository.GetProductionCompaniesByMovieIdAsync(movieId);
+        return result.ToList();
+    }
 }
 

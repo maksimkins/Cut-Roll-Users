@@ -1,4 +1,4 @@
-namespace Cut_Roll_Users.Core.MovieDatabases.MovieEmbeddings.Services;
+namespace Cut_Roll_Users.Core.MovieEmbeddings.Services;
 
 using Cut_Roll_Users.Core.MovieEmbeddings.Dtos;
 public interface IMovieDataExtractionService

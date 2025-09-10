@@ -15,6 +15,5 @@ public interface IMovieSpokenLanguageService
     Task<bool> BulkCreateMovieSpokenLaguageAsync(IEnumerable<MovieSpokenLanguageDto>? toCreate);
     Task<bool> BulkDeleteeMovieSpokenLaguageAsync(IEnumerable<MovieSpokenLanguageDto>? toDelete);
     Task<List<SpokenLanguage>> GetSpokenLanguagesByMovieIdsAsync(List<Guid> movieIds);
-    Task<List<SpokenLanguage>> GetSpokenLanguagesByMovieIdAsync(Guid movieId);
 }
 

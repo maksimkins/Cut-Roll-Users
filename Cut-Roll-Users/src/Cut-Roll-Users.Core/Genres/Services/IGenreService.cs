@@ -11,6 +11,8 @@ public interface IGenreService
     public Task<Genre?> GetGenreByIdAsync(Guid? id);
     public Task<PagedResult<Genre>> GetAllGenresAsync(GenrePaginationDto? dto);
     public Task<PagedResult<Genre>> SearchGenreAsync(GenreSearchDto? dto);
+    public Task<bool> ExistsAsync(Guid id);
+    public Task<bool> ExistsByNameAsync(string name);
 }
 
 

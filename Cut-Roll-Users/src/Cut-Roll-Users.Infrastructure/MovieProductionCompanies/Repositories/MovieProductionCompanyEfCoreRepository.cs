@@ -141,4 +141,23 @@ public class MovieProductionCompanyEfCoreRepository : IMovieProductionCompanyRep
             PageSize = movieSearchByCompanyDto.PageSize
         };
     }
+
+    public async Task<List<ProductionCompany>> GetProductionCompaniesByMovieIdsAsync(List<Guid> movieIds)
+    {
+        return await _dbContext.MovieProductionCompanies
+            .Where(mpc => movieIds.Contains(mpc.MovieId))
+            .Include(mpc => mpc.Company)
+            .Select(mpc => mpc.Company)
+            .Distinct()
+            .ToListAsync();
+    }
+
+    public async Task<List<ProductionCompany>> GetProductionCompaniesByMovieIdAsync(Guid movieId)
+    {
+        return await _dbContext.MovieProductionCompanies
+            .Where(mpc => mpc.MovieId == movieId)
+            .Include(mpc => mpc.Company)
+            .Select(mpc => mpc.Company)
+            .ToListAsync();
+    }
 }

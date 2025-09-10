@@ -22,13 +22,19 @@ public interface IMovieService
     Task<bool> IsMovieWatchedByUserAsync(Guid? movieId, string? userId);
     Task<bool> IsMovieLikedByUserAsync(Guid? movieId, string? userId);
     Task<bool> IsMovieInUserWantToWatchAsync(Guid? movieId, string? userId);
-    
+
     Task<List<Movie>> GetMoviesWithPaginationAsync(int offset, int limit);
-    Task<List<Movie>> GetLikedMoviesByUserIdAsync(Guid userId);
-    Task<List<Movie>> GetWatchedMoviesByUserIdAsync(Guid userId);
+    Task<List<Movie>> GetLikedMoviesByUserIdAsync(string? userId);
+    Task<List<Movie>> GetWatchedMoviesByUserIdAsync(string? userId);
+    Task<List<Movie>> GetLikedMoviesByUserIdAsync(string? userId, int offset, int limit);
+    Task<List<Movie>> GetWatchedMoviesByUserIdAsync(string? userId, int offset, int limit);
+    Task<int> GetLikedMoviesCountByUserIdAsync(string? userId);
+    Task<int> GetWatchedMoviesCountByUserIdAsync(string? userId);
     Task<List<Movie>> GetMoviesWithoutEmbeddingsAsync(int offset, int limit);
     Task<int> GetMoviesWithoutEmbeddingsCountAsync();
     Task<bool> MarkMovieAsEmbeddedAsync(Guid movieId);
     Task<bool> MarkMovieAsNotEmbeddedAsync(Guid movieId);
+    
+    Task<string?> GetMoviePosterPathAsync(Guid movieId);
 }
 

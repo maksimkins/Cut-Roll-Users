@@ -1,5 +1,6 @@
 using Cut_Roll_Users.Core.Common.Dtos;
 using Cut_Roll_Users.Core.Follows.Dtos;
+using Cut_Roll_Users.Core.Follows.Models;
 using Cut_Roll_Users.Core.Follows.Repositories;
 using Cut_Roll_Users.Core.Follows.Services;
 using Cut_Roll_Users.Core.Users.Dtos;
@@ -132,6 +133,30 @@ public class FollowService : IFollowService
             throw new ArgumentException("User ID cannot be null or empty.", nameof(dto.UserId));
 
         return await _followRepository.GetUserFeedAsync(dto);
+    }
+
+    public async Task<List<string>> GetFollowingUserIdsAsync(string? userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentException("User ID cannot be null or empty.", nameof(userId));
+
+        return await _followRepository.GetFollowingUserIdsAsync(userId);
+    }
+
+    public async Task<bool> IsFollowOwnedByUserAsync(string? followerId, string? followingId)
+    {
+        if (string.IsNullOrWhiteSpace(followerId))
+            throw new ArgumentException("Follower ID cannot be null or empty.", nameof(followerId));
+        
+        if (string.IsNullOrWhiteSpace(followingId))
+            throw new ArgumentException("Following ID cannot be null or empty.", nameof(followingId));
+
+        return await _followRepository.IsFollowOwnedByUserAsync(followerId, followingId);
+    }
+
+    public async Task<IQueryable<Follow>> GetFollowsAsQueryableAsync()
+    {
+        return await _followRepository.GetFollowsAsQueryableAsync();
     }
 
 }

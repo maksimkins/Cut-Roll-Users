@@ -116,4 +116,15 @@ public class ListMovieService : IListMovieService
 
         return await _listMovieRepository.GetMovieCountByListIdAsync(listId.Value);
     }
+
+    public async Task<bool> IsListOwnedByUserAsync(Guid? listId, string? userId)
+    {
+        if (!listId.HasValue || listId.Value == Guid.Empty)
+            throw new ArgumentException("List ID cannot be null or empty.", nameof(listId));
+        
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentException("User ID cannot be null or empty.", nameof(userId));
+
+        return await _listMovieRepository.IsListOwnedByUserAsync(listId.Value, userId);
+    }
 }

@@ -1,5 +1,6 @@
 using Cut_Roll_Users.Core.Common.Dtos;
 using Cut_Roll_Users.Core.Follows.Dtos;
+using Cut_Roll_Users.Core.Follows.Models;
 using Cut_Roll_Users.Core.Users.Dtos;
 
 namespace Cut_Roll_Users.Core.Follows.Services;
@@ -15,6 +16,9 @@ public interface IFollowService
     Task<bool> IsFollowingAsync(string? followerId, string? followingId);
     
     Task<PagedResult<FeedActivityDto>> GetUserFeedAsync(FeedPaginationDto? dto);
+    Task<List<string>> GetFollowingUserIdsAsync(string? userId);
+    Task<bool> IsFollowOwnedByUserAsync(string? followerId, string? followingId);
+    Task<IQueryable<Follow>> GetFollowsAsQueryableAsync();
     
 }
 

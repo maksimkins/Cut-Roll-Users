@@ -137,4 +137,14 @@ public class MovieGenreEfCoreRepository : IMovieGenreRepository
             PageSize = searchDto.PageSize
         };
     }
+
+    public async Task<List<Genre>> GetGenresByMovieIdsAsync(List<Guid> movieIds)
+    {
+        return await _dbContext.MovieGenres
+            .Where(mg => movieIds.Contains(mg.MovieId))
+            .Include(mg => mg.Genre)
+            .Select(mg => mg.Genre)
+            .Distinct()
+            .ToListAsync();
+    }
 }

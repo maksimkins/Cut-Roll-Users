@@ -6,4 +6,8 @@ public class PineconeOptions
     public string Environment { get; set; } = string.Empty;
     public string IndexName { get; set; } = string.Empty;
     public int VectorDimension { get; set; } = 384;
+    
+    // Proxy configuration for Traefik
+    public string? ProxyHost { get; set; }
+    public int ProxyPort { get; set; } = 0;
 }

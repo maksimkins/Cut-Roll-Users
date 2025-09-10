@@ -141,4 +141,14 @@ public class MovieKeywordEfCoreRepository : IMovieKeywordRepository
             PageSize = searchDto.PageSize
         };
     }
+
+    public async Task<List<Keyword>> GetKeywordsByMovieIdsAsync(List<Guid> movieIds)
+    {
+        return await _dbContext.MovieKeywords
+            .Where(mk => movieIds.Contains(mk.MovieId))
+            .Include(mk => mk.Keyword)
+            .Select(mk => mk.Keyword)
+            .Distinct()
+            .ToListAsync();
+    }
 }

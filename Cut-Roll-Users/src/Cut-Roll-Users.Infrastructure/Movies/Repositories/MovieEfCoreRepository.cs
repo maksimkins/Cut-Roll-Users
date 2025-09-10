@@ -1,5 +1,6 @@
 namespace Cut_Roll_Users.Infrastructure.Movies.Repositories;
 
+using System.Collections.Generic;
 using Cut_Roll_Users.Core.Common.Dtos;
 using Cut_Roll_Users.Core.MovieImages.Enums;
 using Cut_Roll_Users.Core.Movies.Dtos;
@@ -309,4 +310,135 @@ public async Task<int> GetMovieWatchedCountAsync(Guid movieId)
         return await _context.WantToWatchMovies
             .AnyAsync(w => w.MovieId == movieId && w.UserId == userId);
     }
+
+    public async Task<List<Movie>> GetMoviesWithPaginationAsync(int offset, int limit)
+    {
+        return await _context.Movies
+            .OrderBy(m => m.Title)
+            .Skip(offset)
+            .Take(limit)
+            .ToListAsync();
+    }
+
+    public async Task<List<Movie>> GetLikedMoviesByUserIdAsync(string userId)
+    {
+        return await _context.Movies
+            .Where(m => m.MovieLikes.Any(ml => ml.UserId == userId))
+            .Include(m => m.MovieGenres)
+                .ThenInclude(mg => mg.Genre)
+            .Include(m => m.Images)
+            .AsSplitQuery()
+            .ToListAsync();
+    }
+
+    public async Task<List<Movie>> GetWatchedMoviesByUserIdAsync(string userId)
+    {
+        return await _context.Movies
+            .Where(m => m.Watched.Any(w => w.UserId == userId))
+            .Include(m => m.MovieGenres)
+                .ThenInclude(mg => mg.Genre)
+            .Include(m => m.Images)
+            .AsSplitQuery()
+            .ToListAsync();
+    }
+
+    public async Task<List<Movie>> GetLikedMoviesByUserIdAsync(string userId, int offset, int limit)
+    {
+        return await _context.Movies
+            .Where(m => m.MovieLikes.Any(ml => ml.UserId == userId))
+            .OrderBy(m => m.Title)
+            .Skip(offset)
+            .Take(limit)
+            .Include(m => m.MovieGenres)
+                .ThenInclude(mg => mg.Genre)
+            .Include(m => m.Images)
+            .AsSplitQuery()
+            .ToListAsync();
+    }
+
+    public async Task<List<Movie>> GetWatchedMoviesByUserIdAsync(string userId, int offset, int limit)
+    {
+        return await _context.Movies
+            .Where(m => m.Watched.Any(w => w.UserId == userId))
+            .OrderBy(m => m.Title)
+            .Skip(offset)
+            .Take(limit)
+            .Include(m => m.MovieGenres)
+                .ThenInclude(mg => mg.Genre)
+            .Include(m => m.Images)
+            .AsSplitQuery()
+            .ToListAsync();
+    }
+
+    public async Task<int> GetLikedMoviesCountByUserIdAsync(string userId)
+    {
+        return await _context.Movies
+            .Where(m => m.MovieLikes.Any(ml => ml.UserId == userId))
+            .CountAsync();
+    }
+
+    public async Task<int> GetWatchedMoviesCountByUserIdAsync(string userId)
+    {
+        return await _context.Movies
+            .Where(m => m.Watched.Any(w => w.UserId == userId))
+            .CountAsync();
+    }
+
+    public async Task<List<Movie>> GetMoviesWithoutEmbeddingsAsync(int offset, int limit)
+    {
+        return await _context.Movies
+            .Where(m => !m.HasEmbedding)
+            .OrderBy(m => m.Title)
+            .Skip(offset)
+            .Take(limit)
+            .ToListAsync();
+    }
+
+    public async Task<int> GetMoviesWithoutEmbeddingsCountAsync()
+    {
+        return await _context.Movies
+            .Where(m => !m.HasEmbedding)
+            .CountAsync();
+    }
+
+    public async Task<bool> MarkMovieAsEmbeddedAsync(Guid movieId)
+    {
+        var movie = await _context.Movies.FindAsync(movieId);
+        if (movie == null)
+            return false;
+
+        movie.HasEmbedding = true;
+        movie.EmbeddingUpdatedAt = DateTime.UtcNow;
+        movie.EmbeddingVersion = (movie.EmbeddingVersion ?? 0) + 1;
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> MarkMovieAsNotEmbeddedAsync(Guid movieId)
+    {
+        var movie = await _context.Movies.FindAsync(movieId);
+        if (movie == null)
+            return false;
+
+        movie.HasEmbedding = false;
+        movie.EmbeddingUpdatedAt = null;
+        movie.EmbeddingVersion = null;
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<string?> GetMoviePosterPathAsync(Guid movieId)
+    {
+        var filepath = await _context.Movies
+            .Where(m => m.Id == movieId)
+            .SelectMany(m => m.Images)
+            .Where(i => i.Type == ImageTypes.poster.ToString())
+            .Select(i => i.FilePath)
+            .FirstOrDefaultAsync();
+
+        return filepath;
+    }
+
 }

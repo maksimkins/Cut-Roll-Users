@@ -66,4 +66,20 @@ public class GenreService : IGenreService
 
         return await _genreRepository.SearchAsync(dto);
     }
+
+    public async Task<bool> ExistsAsync(Guid id)
+    {
+        if (id == Guid.Empty)
+            throw new ArgumentException(nameof(id));
+
+        return await _genreRepository.ExistsAsync(id);
+    }
+
+    public async Task<bool> ExistsByNameAsync(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException(nameof(name));
+
+        return await _genreRepository.ExistsByNameAsync(name);
+    }
 }

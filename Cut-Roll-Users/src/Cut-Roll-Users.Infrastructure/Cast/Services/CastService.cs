@@ -132,4 +132,34 @@ public class CastService : ICastService
         return await _castRepository.UpdateAsync(dto) ??
             throw new InvalidOperationException(message: "could not update cast");
     }
+
+    public async Task<List<Cast>> GetCastByMovieIdsAsync(List<Guid> movieIds)
+    {
+        if (movieIds == null || !movieIds.Any())
+            throw new ArgumentNullException(nameof(movieIds));
+
+        foreach (var movieId in movieIds)
+        {
+            if (movieId == Guid.Empty)
+                throw new ArgumentException("One or more movie IDs are invalid");
+        }
+
+        return await _castRepository.GetCastByMovieIdsAsync(movieIds);
+    }
+
+    public async Task<List<Cast>> GetCastByMovieIdAsync(Guid movieId)
+    {
+        if (movieId == Guid.Empty)
+            throw new ArgumentException(nameof(movieId));
+
+        return await _castRepository.GetCastByMovieIdAsync(movieId);
+    }
+
+    public async Task<bool> ExistsByIdAsync(Guid id)
+    {
+        if (id == Guid.Empty)
+            throw new ArgumentException(nameof(id));
+
+        return await _castRepository.ExistsByIdAsync(id);
+    }
 }

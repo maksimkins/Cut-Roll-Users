@@ -125,4 +125,18 @@ public class MovieKeywordService : IMovieKeywordService
 
         return await _movieKeywordRepository.GetMoviesByKeywordIdAsync(dto);
     }
+
+    public async Task<List<Keyword>> GetKeywordsByMovieIdsAsync(List<Guid> movieIds)
+    {
+        if (movieIds == null || !movieIds.Any())
+            throw new ArgumentNullException(nameof(movieIds));
+
+        foreach (var movieId in movieIds)
+        {
+            if (movieId == Guid.Empty)
+                throw new ArgumentException("One or more movie IDs are invalid");
+        }
+
+        return await _movieKeywordRepository.GetKeywordsByMovieIdsAsync(movieIds);
+    }
 }

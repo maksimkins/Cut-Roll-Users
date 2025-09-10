@@ -14,4 +14,5 @@ public interface IMovieOriginCountryService
     Task<PagedResult<MovieSimplifiedDto>> GetMoviesByOriginCountryIdAsync(MovieSearchByCountryDto? movieSearchByCountryDto);
     Task<bool> BulkCreateMovieOriginCountryAsync(IEnumerable<MovieOriginCountryDto>? toCreate);
     Task<bool> BulkDeleteMovieOriginCountryAsync(IEnumerable<MovieOriginCountryDto>? toDelete);
+    Task<bool> ExistsAsync(MovieOriginCountryDto dto);
 }

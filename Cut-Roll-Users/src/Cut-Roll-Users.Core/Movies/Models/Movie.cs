@@ -67,4 +67,8 @@ public class Movie
     public ICollection<WantToWatchFilm> WantToWatchFilms { get; set; } = [];
     public ICollection<WatchedMovie> Watched { get; set; } = [];
     public ICollection<ListMovie> ListMovies { get; set; } = [];
+
+    public bool HasEmbedding { get; set; }
+    public DateTime? EmbeddingUpdatedAt { get; set; }
+    public int? EmbeddingVersion { get; set; }
 }

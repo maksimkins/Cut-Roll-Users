@@ -223,4 +223,24 @@ public class CastEfCoreRepository : ICastRepository
     {
         return await _dbContext.Cast.AnyAsync(c => c.Id == id);
     }
+
+    public async Task<List<Cast>> GetCastByMovieIdsAsync(List<Guid> movieIds)
+    {
+        return await _dbContext.Cast
+            .Where(c => movieIds.Contains(c.MovieId))
+            .Include(c => c.Person)
+            .Include(c => c.Movie)
+            .OrderBy(c => c.CastOrder)
+            .ToListAsync();
+    }
+
+    public async Task<List<Cast>> GetCastByMovieIdAsync(Guid movieId)
+    {
+        return await _dbContext.Cast
+            .Where(c => c.MovieId == movieId)
+            .Include(c => c.Person)
+            .Include(c => c.Movie)
+            .OrderBy(c => c.CastOrder)
+            .ToListAsync();
+    }
 }

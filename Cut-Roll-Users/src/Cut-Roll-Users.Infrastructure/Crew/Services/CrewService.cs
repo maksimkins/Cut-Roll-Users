@@ -138,4 +138,26 @@ public class CrewService : ICrewService
             
         return await _crewRepository.DeleteRangeById(movieId.Value);
     }
+
+    public async Task<List<Crew>> GetCrewByMovieIdsAsync(List<Guid> movieIds)
+    {
+        if (movieIds == null || !movieIds.Any())
+            throw new ArgumentNullException(nameof(movieIds));
+
+        foreach (var movieId in movieIds)
+        {
+            if (movieId == Guid.Empty)
+                throw new ArgumentException("One or more movie IDs are invalid");
+        }
+
+        return await _crewRepository.GetCrewByMovieIdsAsync(movieIds);
+    }
+
+    public async Task<List<Crew>> GetCrewByMovieIdAsync(Guid movieId)
+    {
+        if (movieId == Guid.Empty)
+            throw new ArgumentException(nameof(movieId));
+
+        return await _crewRepository.GetCrewByMovieIdAsync(movieId);
+    }
 }

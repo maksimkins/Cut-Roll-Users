@@ -122,4 +122,27 @@ public class MovieSpokenLanguageService : IMovieSpokenLanguageService
             
         return await _movieSpokenLanguageRepository.GetSpokenLanguagesByMovieIdAsync(movieId.Value);
     }
+
+    public async Task<List<SpokenLanguage>> GetSpokenLanguagesByMovieIdsAsync(List<Guid> movieIds)
+    {
+        if (movieIds == null || !movieIds.Any())
+            throw new ArgumentNullException(nameof(movieIds));
+
+        foreach (var movieId in movieIds)
+        {
+            if (movieId == Guid.Empty)
+                throw new ArgumentException("One or more movie IDs are invalid");
+        }
+
+        return await _movieSpokenLanguageRepository.GetSpokenLanguagesByMovieIdsAsync(movieIds);
+    }
+
+    public async Task<List<SpokenLanguage>> GetSpokenLanguagesByMovieIdAsync(Guid movieId)
+    {
+        if (movieId == Guid.Empty)
+            throw new ArgumentException(nameof(movieId));
+
+        var result = await _movieSpokenLanguageRepository.GetSpokenLanguagesByMovieIdAsync(movieId);
+        return result.ToList();
+    }
 }

@@ -8,7 +8,7 @@ using Cut_Roll_Users.Core.Movies.Dtos;
 public interface IMovieProductionCountryService
 {
     Task<Guid> CreateMovieProductionCountryAsync(MovieProductionCountryDto? dto);
-    Task<Guid> DeleteMovieProductionCountryAsyncMovieProductionCountryAsync(MovieProductionCountryDto? dto);
+    Task<Guid> DeleteMovieProductionCountryAsync(MovieProductionCountryDto? dto);
     Task<bool> DeleteMovieProductionCountryRangeByMovieId(Guid? movieId);
     Task<PagedResult<MovieSimplifiedDto>> GetMoviesByCountryIdAsync(MovieSearchByCountryDto? movieSearchByCountryDto);
     Task<IEnumerable<Country>> GetCountriesByMovieIdAsync(Guid? movieId);

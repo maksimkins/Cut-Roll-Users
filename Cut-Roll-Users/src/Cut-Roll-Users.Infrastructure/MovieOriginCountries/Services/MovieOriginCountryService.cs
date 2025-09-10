@@ -126,4 +126,12 @@ public class MovieOriginCountryService : IMovieOriginCountryService
 
         return await _movieOriginCountryRepository.GetMoviesByOriginCountryIdAsync(dto);
     }
+
+    public async Task<bool> ExistsAsync(MovieOriginCountryDto dto)
+    {
+        if (dto == null)
+            throw new ArgumentNullException(nameof(dto));
+
+        return await _movieOriginCountryRepository.ExistsAsync(dto);
+    }
 }

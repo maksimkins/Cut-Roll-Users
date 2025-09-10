@@ -11,5 +11,7 @@ public interface IKeywordService
     public Task<PagedResult<Keyword>> SearchKeywordAsync(KeywordSearchDto? dto);
     public Task<PagedResult<Keyword>> GetAllKeywordsAsync(KeywordPaginationDto? dto);
     public Task<Keyword?> GetKeywordByIdAsync(Guid? id);
+    Task<bool> ExistsAsync(Guid id);
+    Task<bool> ExistsByNameAsync(string name);
 }
 

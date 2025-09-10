@@ -140,4 +140,23 @@ public class MovieProductionCountryEfCoreRepository : IMovieProductionCountryRep
             PageSize = movieSearchByCountryDto.PageSize
         };
     }
+
+    public async Task<List<Country>> GetProductionCountriesByMovieIdsAsync(List<Guid> movieIds)
+    {
+        return await _dbContext.MovieProductionCountries
+            .Where(mpc => movieIds.Contains(mpc.MovieId))
+            .Include(mpc => mpc.Country)
+            .Select(mpc => mpc.Country)
+            .Distinct()
+            .ToListAsync();
+    }
+
+    public async Task<List<Country>> GetProductionCountriesByMovieIdAsync(Guid movieId)
+    {
+        return await _dbContext.MovieProductionCountries
+            .Where(mpc => mpc.MovieId == movieId)
+            .Include(mpc => mpc.Country)
+            .Select(mpc => mpc.Country)
+            .ToListAsync();
+    }
 }

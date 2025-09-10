@@ -125,4 +125,35 @@ public class MovieProductionCountryService : IMovieProductionCountryService
 
         return await _movieProductionCountryRepository.GetMoviesByCountryIdAsync(dto);
     }
+
+    public async Task<List<Country>> GetProductionCountriesByMovieIdsAsync(List<Guid> movieIds)
+    {
+        if (movieIds == null || !movieIds.Any())
+            throw new ArgumentNullException(nameof(movieIds));
+
+        foreach (var movieId in movieIds)
+        {
+            if (movieId == Guid.Empty)
+                throw new ArgumentException("One or more movie IDs are invalid");
+        }
+
+        return await _movieProductionCountryRepository.GetProductionCountriesByMovieIdsAsync(movieIds);
+    }
+
+    public async Task<List<Country>> GetProductionCountriesByMovieIdAsync(Guid movieId)
+    {
+        if (movieId == Guid.Empty)
+            throw new ArgumentException(nameof(movieId));
+
+        return await _movieProductionCountryRepository.GetProductionCountriesByMovieIdAsync(movieId);
+    }
+
+    public async Task<Guid> DeleteMovieProductionCountryAsync(MovieProductionCountryDto? dto)
+    {
+        if (dto == null)
+            throw new ArgumentNullException(nameof(dto));
+
+        return await _movieProductionCountryRepository.DeleteAsync(dto)
+            ?? throw new InvalidOperationException("Failed to delete movie production country.");
+    }
 }

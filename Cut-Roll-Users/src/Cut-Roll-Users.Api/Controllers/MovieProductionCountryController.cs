@@ -40,7 +40,7 @@ public class MovieProductionCountryController : ControllerBase
     {
         try
         {
-            var id = await _movieProductionCountryService.DeleteMovieProductionCountryAsyncMovieProductionCountryAsync(dto);
+            var id = await _movieProductionCountryService.DeleteMovieProductionCountryAsync(dto);
             return Ok(id);
         }
         catch (ArgumentNullException ex) { return BadRequest(ex.Message); }

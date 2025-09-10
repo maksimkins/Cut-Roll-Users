@@ -240,4 +240,26 @@ public class CrewEfCoreRepository : ICrewRepository
     {
         return await _dbContext.Crew.AnyAsync(c => c.Id == id);
     }
+
+    public async Task<List<Crew>> GetCrewByMovieIdsAsync(List<Guid> movieIds)
+    {
+        return await _dbContext.Crew
+            .Where(c => movieIds.Contains(c.MovieId))
+            .Include(c => c.Person)
+            .Include(c => c.Movie)
+            .OrderBy(c => c.Department)
+            .ThenBy(c => c.Job)
+            .ToListAsync();
+    }
+
+    public async Task<List<Crew>> GetCrewByMovieIdAsync(Guid movieId)
+    {
+        return await _dbContext.Crew
+            .Where(c => c.MovieId == movieId)
+            .Include(c => c.Person)
+            .Include(c => c.Movie)
+            .OrderBy(c => c.Department)
+            .ThenBy(c => c.Job)
+            .ToListAsync();
+    }
 }

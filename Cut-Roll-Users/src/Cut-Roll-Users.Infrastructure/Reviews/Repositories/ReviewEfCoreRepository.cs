@@ -1,5 +1,7 @@
 using Cut_Roll_Users.Core.Common.Dtos;
 using Cut_Roll_Users.Core.Common.Repositories.Base;
+using Cut_Roll_Users.Core.MovieImages.Enums;
+using Cut_Roll_Users.Core.Movies.Dtos;
 using Cut_Roll_Users.Core.Reviews.Dtos;
 using Cut_Roll_Users.Core.Reviews.Models;
 using Cut_Roll_Users.Core.Reviews.Repositories;
@@ -54,6 +56,7 @@ public class ReviewEfCoreRepository : IReviewRepository
     {
         var review = await _context.Reviews
             .Include(r => r.User)
+            .Include(r => r.Movie)
             .Include(r => r.Likes)
             .Include(r => r.Comments)
             .FirstOrDefaultAsync(r => r.Id == id);
@@ -70,7 +73,12 @@ public class ReviewEfCoreRepository : IReviewRepository
                 Email = review.User.Email,
                 AvatarPath = review.User.AvatarPath
             },
-            MovieId = review.MovieId,
+            MovieSimplified = new MovieSimplifiedDto
+            {
+                MovieId = review.Movie.Id,
+                Title = review.Movie.Title,
+                Poster = review.Movie.Images.FirstOrDefault(i => i.Type == ImageTypes.poster.ToString()),
+            },
             Content = review.Content,
             Rating = review.Rating,
             CreatedAt = review.CreatedAt,
@@ -113,6 +121,7 @@ public class ReviewEfCoreRepository : IReviewRepository
     {
         var review = await _context.Reviews
             .Include(r => r.User)
+            .Include(r => r.Movie)
             .Include(r => r.Likes)
             .Include(r => r.Comments)
             .FirstOrDefaultAsync(r => r.UserId == userId && r.MovieId == movieId);
@@ -129,7 +138,12 @@ public class ReviewEfCoreRepository : IReviewRepository
                 Email = review.User.Email,
                 AvatarPath = review.User.AvatarPath
             },
-            MovieId = review.MovieId,
+            MovieSimplified = new MovieSimplifiedDto
+            {
+                MovieId = review.Movie.Id,
+                Title = review.Movie.Title,
+                Poster = review.Movie.Images.FirstOrDefault(i => i.Type == ImageTypes.poster.ToString()),
+            },
             Content = review.Content,
             Rating = review.Rating,
             CreatedAt = review.CreatedAt,
@@ -142,6 +156,8 @@ public class ReviewEfCoreRepository : IReviewRepository
     {
         var query = _context.Reviews
             .Include(r => r.User)
+            .Include(r => r.Movie)
+            .ThenInclude(m => m.Images)
             .Include(r => r.Likes)
             .Include(r => r.Comments)
             .Where(r => r.MovieId == dto.MovieId)
@@ -165,7 +181,12 @@ public class ReviewEfCoreRepository : IReviewRepository
                     Email = r.User.Email,
                     AvatarPath = r.User.AvatarPath
                 },
-                MovieId = r.MovieId,
+                MovieSimplified = new MovieSimplifiedDto
+                {
+                    MovieId = r.Movie.Id,
+                    Title = r.Movie.Title,
+                    Poster = r.Movie.Images.FirstOrDefault(i => i.Type == ImageTypes.poster.ToString()),
+                },
                 Content = r.Content,
                 Rating = r.Rating,
                 CreatedAt = r.CreatedAt,
@@ -187,6 +208,8 @@ public class ReviewEfCoreRepository : IReviewRepository
     {
         var query = _context.Reviews
             .Include(r => r.User)
+            .Include(r => r.Movie)
+            .ThenInclude(m => m.Images)
             .Include(r => r.Likes)
             .Include(r => r.Comments)
             .Where(r => r.UserId == dto.UserId.ToString())
@@ -210,7 +233,12 @@ public class ReviewEfCoreRepository : IReviewRepository
                     Email = r.User.Email,
                     AvatarPath = r.User.AvatarPath
                 },
-                MovieId = r.MovieId,
+                MovieSimplified = new MovieSimplifiedDto
+                {
+                    MovieId = r.Movie.Id,
+                    Title = r.Movie.Title,
+                    Poster = r.Movie.Images.FirstOrDefault(i => i.Type == ImageTypes.poster.ToString()),
+                },
                 Content = r.Content,
                 Rating = r.Rating,
                 CreatedAt = r.CreatedAt,
@@ -254,6 +282,7 @@ public class ReviewEfCoreRepository : IReviewRepository
         var query = _context.Reviews
             .Include(r => r.User)
             .Include(r => r.Movie)
+            .ThenInclude(m => m.Images)
             .Include(r => r.Likes)
             .Include(r => r.Comments)
             .AsQueryable();
@@ -264,7 +293,7 @@ public class ReviewEfCoreRepository : IReviewRepository
             query = query.Where(r => r.UserId == request.UserId);
         }
 
-        if (request.MovieId != null && request.MovieId == Guid.Empty)
+        if (request.MovieId != null && request.MovieId != Guid.Empty)
         {
             query = query.Where(r => r.MovieId == request.MovieId);
         }
@@ -322,7 +351,12 @@ public class ReviewEfCoreRepository : IReviewRepository
                     Email = r.User.Email,
                     AvatarPath = r.User.AvatarPath
                 },
-                MovieId = r.MovieId,
+                MovieSimplified = new MovieSimplifiedDto
+                {
+                    MovieId = r.Movie.Id,
+                    Title = r.Movie.Title,
+                    Poster = r.Movie.Images.FirstOrDefault(i => i.Type == ImageTypes.poster.ToString()),
+                },
                 Content = r.Content,
                 Rating = r.Rating, 
                 CreatedAt = r.CreatedAt,
