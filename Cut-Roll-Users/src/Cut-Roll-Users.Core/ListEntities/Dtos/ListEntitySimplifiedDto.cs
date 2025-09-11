@@ -11,4 +11,5 @@ public class ListEntitySimplifiedDto
     public int MoviesCount { get; set; }
     public int LikesCount { get; set; }
     public UserSimplified User { get; set; } = null!;
+    public List<string?>? Preview { get; set; }
 }

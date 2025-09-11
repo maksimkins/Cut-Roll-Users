@@ -307,7 +307,14 @@ public class FollowEfCoreRepository : IFollowRepository
                         Id = l.Id,
                         Title = l.Title,
                         Description = l.Description,
-                        CreatedAt = l.CreatedAt
+                        CreatedAt = l.CreatedAt,
+                        Preview = l.Movies
+                            .AsQueryable()
+                            .Take(4)
+                            .Select(m => m.Movie.Images
+                                .Where(i => i.Type == ImageTypes.poster.ToString())
+                                .FirstOrDefault())
+                            .Select(i => i != null ? i.FilePath : null).ToList()
                     },
                     CreatedAt = l.CreatedAt
                 })
@@ -337,7 +344,14 @@ public class FollowEfCoreRepository : IFollowRepository
                         Id = ll.List.Id,
                         Title = ll.List.Title,
                         Description = ll.List.Description,
-                        CreatedAt = ll.List.CreatedAt
+                        CreatedAt = ll.List.CreatedAt,
+                        Preview = ll.List.Movies
+                            .AsQueryable()
+                            .Take(4)
+                            .Select(m => m.Movie.Images
+                                .Where(i => i.Type == ImageTypes.poster.ToString())
+                                .FirstOrDefault())
+                            .Select(i => i != null ? i.FilePath : null).ToList()
                     },
                     CreatedAt = ll.LikedAt
                 })

@@ -46,6 +46,14 @@ public class ListEntityEfCoreRepository : IListEntityRepository
 
         if (listEntity == null) return null;
 
+        var preview = listEntity.Movies
+            .AsQueryable()
+            .Take(4)
+            .Select(m => m.Movie.Images
+                .Where(i => i.Type == ImageTypes.poster.ToString())
+                .FirstOrDefault())
+            .ToList();
+
         return new ListEntityResponseDto
         {
             Id = listEntity.Id,
@@ -60,7 +68,8 @@ public class ListEntityEfCoreRepository : IListEntityRepository
             Description = listEntity.Description,
             CreatedAt = listEntity.CreatedAt,
             MoviesCount = listEntity.Movies.Count,
-            LikesCount = listEntity.Likes.Count
+            LikesCount = listEntity.Likes.Count,
+            Preview = preview.Select(i => i != null ? i.FilePath : null).ToList()
         };
     }
 
@@ -152,7 +161,14 @@ public class ListEntityEfCoreRepository : IListEntityRepository
                 Description = l.Description,
                 CreatedAt = l.CreatedAt,
                 MoviesCount = l.Movies.Count,
-                LikesCount = l.Likes.Count
+                LikesCount = l.Likes.Count,
+                Preview = l.Movies
+            .AsQueryable()
+            .Take(4)
+            .Select(m => m.Movie.Images
+                .Where(i => i.Type == ImageTypes.poster.ToString())
+                .FirstOrDefault())
+            .Select(i => i != null ? i.FilePath : null).ToList()
             })
             .ToListAsync();
 
@@ -196,7 +212,14 @@ public class ListEntityEfCoreRepository : IListEntityRepository
                 Description = l.Description,
                 CreatedAt = l.CreatedAt,
                 MoviesCount = l.Movies.Count,
-                LikesCount = l.Likes.Count
+                LikesCount = l.Likes.Count,
+                Preview = l.Movies
+                    .AsQueryable()
+                    .Take(4)
+                    .Select(m => m.Movie.Images
+                        .Where(i => i.Type == ImageTypes.poster.ToString())
+                        .FirstOrDefault())
+                    .Select(i => i != null ? i.FilePath : null).ToList()
             })
             .ToListAsync();
 

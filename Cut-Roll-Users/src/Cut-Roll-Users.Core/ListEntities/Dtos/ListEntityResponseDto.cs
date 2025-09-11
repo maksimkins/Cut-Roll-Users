@@ -11,4 +11,5 @@ public class ListEntityResponseDto
     public DateTime CreatedAt { get; set; }
     public int MoviesCount { get; set; }
     public int LikesCount { get; set; }
+    public List<string?>? Preview { get; set; }
 }
