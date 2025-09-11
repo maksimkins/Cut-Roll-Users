@@ -7,6 +7,7 @@ public static class SetupVariablesMethod
 {
     public static void SetupVariables(this WebApplicationBuilder builder)
     {
+        
         var postgresConnectionString = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION_STRING") ?? throw new SystemException("there is no var POSTGRES_CONNECTION_STRING");
 
         var jwt_key = Environment.GetEnvironmentVariable("JWT_KEY") ?? throw new SystemException("there is no var JWT_KEY");
