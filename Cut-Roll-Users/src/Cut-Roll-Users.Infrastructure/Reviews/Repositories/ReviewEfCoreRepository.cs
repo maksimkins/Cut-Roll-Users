@@ -56,7 +56,7 @@ public class ReviewEfCoreRepository : IReviewRepository
     {
         var review = await _context.Reviews
             .Include(r => r.User)
-            .Include(r => r.Movie)
+            .Include(r => r.Movie).ThenInclude(m => m.Images)
             .Include(r => r.Likes)
             .Include(r => r.Comments)
             .FirstOrDefaultAsync(r => r.Id == id);
@@ -121,7 +121,7 @@ public class ReviewEfCoreRepository : IReviewRepository
     {
         var review = await _context.Reviews
             .Include(r => r.User)
-            .Include(r => r.Movie)
+            .Include(r => r.Movie).ThenInclude(m => m.Images)
             .Include(r => r.Likes)
             .Include(r => r.Comments)
             .FirstOrDefaultAsync(r => r.UserId == userId && r.MovieId == movieId);

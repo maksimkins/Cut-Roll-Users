@@ -41,6 +41,8 @@ public class ListEntityEfCoreRepository : IListEntityRepository
         var listEntity = await _context.ListEntities
             .Include(l => l.User)
             .Include(l => l.Movies)
+                .ThenInclude(m => m.Movie)        
+                .ThenInclude(m => m.Images) 
             .Include(l => l.Likes)
             .FirstOrDefaultAsync(l => l.Id == id);
 
@@ -52,7 +54,7 @@ public class ListEntityEfCoreRepository : IListEntityRepository
             .Select(m => m.Movie.Images
                 .Where(i => i.Type == ImageTypes.poster.ToString())
                 .FirstOrDefault())
-            .ToList();
+            ?.ToList();
 
         return new ListEntityResponseDto
         {
@@ -69,7 +71,7 @@ public class ListEntityEfCoreRepository : IListEntityRepository
             CreatedAt = listEntity.CreatedAt,
             MoviesCount = listEntity.Movies.Count,
             LikesCount = listEntity.Likes.Count,
-            Preview = preview.Select(i => i != null ? i.FilePath : null).ToList()
+            Preview = preview?.Select(i => i != null ? i.FilePath : null).ToList()
         };
     }
 
@@ -108,6 +110,8 @@ public class ListEntityEfCoreRepository : IListEntityRepository
         var query = _context.ListEntities
             .Include(l => l.User)
             .Include(l => l.Movies)
+                        .ThenInclude(m => m.Movie)        
+                .ThenInclude(m => m.Images) 
             .Include(l => l.Likes)
             .Include(l => l.Likes)
             .AsQueryable();
@@ -186,6 +190,8 @@ public class ListEntityEfCoreRepository : IListEntityRepository
         var query = _context.ListEntities
             .Include(l => l.User)
             .Include(l => l.Movies)
+                .ThenInclude(m => m.Movie)        
+                .ThenInclude(m => m.Images)
             .Include(l => l.Likes)
             .Where(l => l.UserId == dto.UserId)
             .OrderByDescending(l => l.CreatedAt);
@@ -243,7 +249,9 @@ public class ListEntityEfCoreRepository : IListEntityRepository
     {
         var query = _context.ListEntities
             .Include(l => l.User)
-            .Include(l => l.Movies).ThenInclude(m => m.Movie)
+            .Include(l => l.Movies)
+                .ThenInclude(m => m.Movie)        
+                .ThenInclude(m => m.Images)
             .Include(l => l.Likes)
             .AsQueryable();
 
