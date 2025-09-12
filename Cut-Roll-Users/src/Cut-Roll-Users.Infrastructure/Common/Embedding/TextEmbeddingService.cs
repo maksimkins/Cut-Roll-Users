@@ -1,3 +1,4 @@
+
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using Microsoft.ML.OnnxRuntime;
@@ -39,6 +40,9 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
     // Configuration constants
     private const int MAX_RETRIES = 3;
     private const string CACHE_KEY_PREFIX = "embedding_";
+
+    // ILocalEmbeddingService property
+    public bool IsModelLoaded => _inferenceSession != null;
 
     public TextEmbeddingService(
         ISqlDataReaderService sqlDataReaderService,
@@ -118,8 +122,6 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
     }
 
     // ILocalEmbeddingService properties
-    public bool IsModelLoaded => _inferenceSession != null;
-
     // ITextEmbeddingService methods
     public async Task<List<float>> GenerateEmbeddingAsync(string text)
     {

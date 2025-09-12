@@ -18,6 +18,10 @@ public class MovieEmbeddingService : IMovieEmbeddingService
     private readonly IMovieService _movieService;
     private readonly ILogger<MovieEmbeddingService> _logger;
 
+    // Processing state tracking
+    private volatile bool _isProcessing = false;
+    private DateTime? _lastProcessedAt = null;
+
     public MovieEmbeddingService(
         ITextEmbeddingService textEmbeddingService,
         IVectorMovieDatabaseService vectorDatabaseService,
@@ -127,73 +131,18 @@ public class MovieEmbeddingService : IMovieEmbeddingService
         }
     }
 
-    public async Task<List<MovieRecommendationDto>> GetSimilarMoviesAsync(Guid movieId, int limit = 10)
-    {
-        try
-        {
-            _logger.LogDebug("Getting similar movies for movie {MovieId} with limit {Limit}", movieId, limit);
-
-            // Get movie data to generate query embedding
-            var movieData = await _sqlDataReaderService.ExtractMovieDataByIdAsync(movieId);
-            if (movieData == null)
-            {
-                _logger.LogWarning("Movie with ID {MovieId} not found", movieId);
-                return new List<MovieRecommendationDto>();
-            }
-
-            // Convert SqlMovieData to MovieDataForEmbeddingDto
-            var movieDataForEmbedding = ConvertToMovieDataForEmbedding(movieData);
-
-            // Generate embedding for the query movie
-            var queryEmbedding = await _textEmbeddingService.GenerateMovieEmbeddingAsync(movieDataForEmbedding);
-            if (queryEmbedding == null || !queryEmbedding.Any())
-            {
-                _logger.LogError("Failed to generate query embedding for movie {MovieId}", movieId);
-                return new List<MovieRecommendationDto>();
-            }
-
-            // Find similar movies (exclude the query movie itself)
-            var excludeMovieIds = new List<Guid> { movieId };
-            var recommendations = await _vectorDatabaseService.FindSimilarMoviesAsync(queryEmbedding, limit, excludeMovieIds);
-
-            _logger.LogDebug("Found {Count} similar movies for movie {MovieId}", recommendations.Count, movieId);
-            return recommendations;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting similar movies for movie {MovieId}", movieId);
-            return new List<MovieRecommendationDto>();
-        }
-    }
-
-    public Task<List<MovieRecommendationDto>> GetContentBasedRecommendationsAsync(string userId, int limit = 10)
-    {
-        try
-        {
-            _logger.LogDebug("Getting content-based recommendations for user {UserId} with limit {Limit}", userId, limit);
-
-            // TODO: Implement user preference-based recommendations
-            // For now, return empty list as this requires user preference data
-            // This could be enhanced to:
-            // 1. Get user's watched movies
-            // 2. Get user's liked movies
-            // 3. Generate average embedding from user preferences
-            // 4. Find similar movies based on user's taste
-
-            _logger.LogWarning("Content-based recommendations not yet implemented for user {UserId}", userId);
-            return Task.FromResult(new List<MovieRecommendationDto>());
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting content-based recommendations for user {UserId}", userId);
-            return Task.FromResult(new List<MovieRecommendationDto>());
-        }
-    }
 
     public async Task ProcessAllMoviesAsync(int? batchSize = null)
     {
+        if (_isProcessing)
+        {
+            _logger.LogWarning("Movie processing is already in progress");
+            return;
+        }
+
         try
         {
+            _isProcessing = true;
             var batch = batchSize ?? 32;
             _logger.LogInformation("Starting to process all movies with batch size {BatchSize}", batch);
 
@@ -214,6 +163,7 @@ public class MovieEmbeddingService : IMovieEmbeddingService
                 await Task.Delay(100);
             }
 
+            _lastProcessedAt = DateTime.UtcNow;
             _logger.LogInformation("Completed processing all movies. Total processed: {Processed}, Failed: {Failed}", 
                 processedCount, failedCount);
         }
@@ -221,6 +171,10 @@ public class MovieEmbeddingService : IMovieEmbeddingService
         {
             _logger.LogError(ex, "Error processing all movies");
             throw;
+        }
+        finally
+        {
+            _isProcessing = false;
         }
     }
 
@@ -279,8 +233,8 @@ public class MovieEmbeddingService : IMovieEmbeddingService
                 IsVectorDbEmpty = isVectorDbEmpty,
                 TotalMoviesInDatabase = totalMovies,
                 TotalEmbeddingsInVectorDb = totalEmbeddings,
-                IsProcessing = false, // TODO: Track processing state
-                LastProcessedAt = null, // TODO: Track last processing time
+                IsProcessing = _isProcessing,
+                LastProcessedAt = _lastProcessedAt,
                 Status = isHealthy ? "Healthy" : "Unhealthy"
             };
 
