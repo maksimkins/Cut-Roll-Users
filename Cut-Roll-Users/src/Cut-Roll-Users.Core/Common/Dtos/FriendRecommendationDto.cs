@@ -17,3 +17,4 @@ public class FriendRecommendationDto
     public string? Overview { get; set; }
     public DateTime? ReleaseDate { get; set; }
 }
+

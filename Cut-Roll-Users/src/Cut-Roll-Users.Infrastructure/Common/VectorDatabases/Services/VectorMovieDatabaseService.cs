@@ -9,15 +9,15 @@ using System.Net;
 namespace Cut_Roll_Users.Infrastructure.Common.VectorDatabases.Services;
 
 /// <summary>
-/// VectorMovieDatabaseService implementation using Pinecone HTTP API for Serverless indexes
+/// VectorMovieDatabaseService implementation using direct HTTP API calls for Pinecone Serverless
 /// </summary>
 public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly PineconeOptions _options;
     private readonly ILogger<VectorMovieDatabaseService> _logger;
-    private bool _disposed = false;
     private readonly string _baseUrl;
+    private bool _disposed = false;
 
     public VectorMovieDatabaseService(
         IOptions<PineconeOptions> options,
@@ -26,43 +26,21 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         
-        // For Serverless indexes, we need to use the HTTP API directly
-        // The base URL format for Serverless is: https://{index-name}-{environment}.svc.{region}.pinecone.io
-        // Based on your actual index, the format is: https://movie-imbeddings-svsa9sf.svc.aped-4627-b74a.pinecone.io
-        _baseUrl = "https://movie-imbeddings-svsa9sf.svc.aped-4627-b74a.pinecone.io";
+        // Use the specific Pinecone Serverless index URL
+        _baseUrl = "https://movie-embeddings-svsa9sf.svc.aped-4627-b74a.pinecone.io";
         
-        // Initialize HTTP client with optional proxy support for Traefik
+        // Initialize HttpClient with proxy support if configured
+        var handler = new HttpClientHandler();
+        
         if (!string.IsNullOrEmpty(_options.ProxyHost) && _options.ProxyPort > 0)
         {
-            // Use proxy if configured
-            var handler = new HttpClientHandler
-            {
-                Proxy = new WebProxy($"{_options.ProxyHost}:{_options.ProxyPort}")
-            };
-            _httpClient = new HttpClient(handler);
+            handler.Proxy = new WebProxy($"{_options.ProxyHost}:{_options.ProxyPort}");
             _logger.LogInformation("Using proxy {ProxyHost}:{ProxyPort} for Pinecone connection", 
                 _options.ProxyHost, _options.ProxyPort);
         }
-        else
-        {
-            // Use direct connection
-            _httpClient = new HttpClient();
-            _logger.LogInformation("Using direct connection to Pinecone (no proxy)");
-        }
         
-        // Set up authentication header
-        if (string.IsNullOrEmpty(_options.ApiKey))
-        {
-            _logger.LogError("PINECONE_API_KEY is null or empty! Check your environment variables.");
-            throw new InvalidOperationException("PINECONE_API_KEY is not configured");
-        }
-        
+        _httpClient = new HttpClient(handler);
         _httpClient.DefaultRequestHeaders.Add("Api-Key", _options.ApiKey);
-        
-        _logger.LogInformation("VectorMovieDatabaseService initialized with Pinecone Serverless index: {IndexName} at {BaseUrl}", 
-            _options.IndexName, _baseUrl);
-        _logger.LogWarning("API Key (first 10 chars): {ApiKeyPrefix}", 
-            _options.ApiKey?.Length > 10 ? _options.ApiKey.Substring(0, 10) + "..." : _options.ApiKey);
     }
 
     public async Task<bool> UpsertMovieEmbeddingAsync(MovieEmbeddingDto embedding)
@@ -71,6 +49,9 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
 
         try
         {
+            _logger.LogInformation("Attempting to upsert embedding for movie {MovieId} to URL: {Url}", 
+                embedding.MovieId, $"{_baseUrl}/vectors/upsert");
+
             var upsertRequest = new
             {
                 vectors = new[]
@@ -79,11 +60,11 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
                     {
                         id = embedding.MovieId.ToString(),
                         values = embedding.Embedding.ToArray(),
-                        metadata = new Dictionary<string, object>
+                        metadata = new
                         {
-                            ["movieId"] = embedding.MovieId.ToString(),
-                            ["title"] = embedding.Title,
-                            ["posterPath"] = embedding.PosterPath ?? ""
+                            movieId = embedding.MovieId.ToString(),
+                            title = embedding.Title,
+                            posterPath = embedding.PosterPath ?? string.Empty
                         }
                     }
                 }
@@ -92,31 +73,22 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             var json = JsonSerializer.Serialize(upsertRequest);
             var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
-            _logger.LogWarning("Attempting to upsert embedding for movie {MovieId} to URL: {Url}", embedding.MovieId, $"{_baseUrl}/vectors/upsert");
-            _logger.LogWarning("Request headers: {Headers}", string.Join(", ", _httpClient.DefaultRequestHeaders.Select(h => $"{h.Key}={h.Value.FirstOrDefault()}")));
-            _logger.LogWarning("Request body: {RequestBody}", json);
-            
-            // Create a fresh request with explicit headers
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/vectors/upsert");
-            request.Headers.Add("Api-Key", _options.ApiKey);
-            request.Content = content;
-            
-            var response = await _httpClient.SendAsync(request);
-            
-            // Log the response status
-            _logger.LogWarning("Upsert response for movie {MovieId}: Status={StatusCode}", embedding.MovieId, response.StatusCode);
-            
+            _logger.LogInformation("Request headers: {Headers}", 
+                string.Join(", ", _httpClient.DefaultRequestHeaders.Select(h => $"{h.Key}={h.Value.FirstOrDefault()}")));
+            _logger.LogInformation("Request body: {Body}", json);
+
+            var response = await _httpClient.PostAsync($"{_baseUrl}/vectors/upsert", content);
+            var responseContent = await response.Content.ReadAsStringAsync();
+
             if (response.IsSuccessStatusCode)
             {
-                var responseContent = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("Successfully upserted embedding for movie {MovieId}. Response: {Response}", embedding.MovieId, responseContent);
+                _logger.LogInformation("Successfully upserted embedding for movie {MovieId}", embedding.MovieId);
                 return true;
             }
             else
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("Failed to upsert embedding for movie {MovieId}. Status: {StatusCode}, Error: {Error}, URL: {Url}", 
-                    embedding.MovieId, response.StatusCode, errorContent, $"{_baseUrl}/vectors/upsert");
+                _logger.LogError("Failed to upsert embedding for movie {MovieId}. Status: {Status}, Error: {Error}, URL: {Url}", 
+                    embedding.MovieId, response.StatusCode, responseContent, $"{_baseUrl}/vectors/upsert");
                 return false;
             }
         }
@@ -133,11 +105,13 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
 
         try
         {
+            _logger.LogInformation("Finding similar movies with limit {Limit}, excluding {ExcludeCount} movies", 
+                limit, excludeMovieIds?.Count ?? 0);
+
             var queryRequest = new
             {
                 vector = queryVector.ToArray(),
-                topK = limit,
-                includeValues = false,
+                topK = excludeMovieIds != null ? limit + excludeMovieIds.Count : limit,
                 includeMetadata = true
             };
 
@@ -145,44 +119,72 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PostAsync($"{_baseUrl}/query", content);
-            
-            if (response.IsSuccessStatusCode)
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
             {
-                var responseContent = await response.Content.ReadAsStringAsync();
-                var queryResponse = JsonSerializer.Deserialize<QueryResponse>(responseContent);
-                
-                var recommendations = new List<MovieRecommendationDto>();
-                
-                if (queryResponse?.Matches != null)
-                {
-                    foreach (var match in queryResponse.Matches)
-                    {
-                        if (match.Metadata != null && Guid.TryParse(match.Metadata.MovieId, out var movieId))
-                        {
-                            // Skip excluded movies
-                            if (excludeMovieIds != null && excludeMovieIds.Contains(movieId))
-                                continue;
-                                
-                            recommendations.Add(new MovieRecommendationDto
-                            {
-                                MovieId = movieId,
-                                Title = match.Metadata.Title ?? "Unknown",
-                                PosterPath = match.Metadata.PosterPath,
-                                SimilarityScore = match.Score ?? 0.0
-                            });
-                        }
-                    }
-                }
-                
-                return recommendations;
-            }
-            else
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("Failed to query similar movies. Status: {StatusCode}, Error: {Error}", 
-                    response.StatusCode, errorContent);
+                _logger.LogError("Failed to query similar movies. Status: {Status}, Error: {Error}", 
+                    response.StatusCode, responseContent);
                 return new List<MovieRecommendationDto>();
             }
+
+            var queryResponse = JsonSerializer.Deserialize<JsonElement>(responseContent);
+            
+            if (!queryResponse.TryGetProperty("matches", out var matchesElement))
+            {
+                _logger.LogWarning("No matches found in vector database");
+                return new List<MovieRecommendationDto>();
+            }
+
+            var recommendations = new List<MovieRecommendationDto>();
+
+            foreach (var matchElement in matchesElement.EnumerateArray())
+            {
+                try
+                {
+                    var id = matchElement.GetProperty("id").GetString();
+                    if (string.IsNullOrEmpty(id) || !Guid.TryParse(id, out var movieId))
+                        continue;
+
+                    // Skip if movie ID is in exclusion list
+                    if (excludeMovieIds != null && excludeMovieIds.Contains(movieId))
+                        continue;
+
+                    var score = matchElement.TryGetProperty("score", out var scoreElement) ? scoreElement.GetSingle() : 0f;
+                    
+                    string title = "Unknown Title";
+                    string? posterPath = null;
+
+                    if (matchElement.TryGetProperty("metadata", out var metadataElement))
+                    {
+                        if (metadataElement.TryGetProperty("title", out var titleElement))
+                            title = titleElement.GetString() ?? "Unknown Title";
+                        if (metadataElement.TryGetProperty("posterPath", out var posterElement))
+                            posterPath = posterElement.GetString();
+                    }
+
+                    var recommendation = new MovieRecommendationDto
+                    {
+                        MovieId = movieId,
+                        Title = title,
+                        SimilarityScore = score,
+                        PosterPath = posterPath
+                    };
+
+                    recommendations.Add(recommendation);
+
+                    // Stop if we have enough recommendations
+                    if (recommendations.Count >= limit)
+                        break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error processing match");
+                }
+            }
+
+            _logger.LogInformation("Found {Count} similar movies", recommendations.Count);
+            return recommendations;
         }
         catch (Exception ex)
         {
@@ -197,6 +199,8 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
 
         try
         {
+            _logger.LogInformation("Deleting embedding for movie {MovieId}", movieId);
+
             var deleteRequest = new
             {
                 ids = new[] { movieId.ToString() }
@@ -206,17 +210,17 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PostAsync($"{_baseUrl}/vectors/delete", content);
-            
+            var responseContent = await response.Content.ReadAsStringAsync();
+
             if (response.IsSuccessStatusCode)
             {
-                _logger.LogDebug("Successfully deleted embedding for movie {MovieId}", movieId);
+                _logger.LogInformation("Successfully deleted embedding for movie {MovieId}", movieId);
                 return true;
             }
             else
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("Failed to delete embedding for movie {MovieId}. Status: {StatusCode}, Error: {Error}", 
-                    movieId, response.StatusCode, errorContent);
+                _logger.LogError("Failed to delete embedding for movie {MovieId}. Status: {Status}, Error: {Error}", 
+                    movieId, response.StatusCode, responseContent);
                 return false;
             }
         }
@@ -233,46 +237,35 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
 
         try
         {
-            // For Serverless indexes, we can't use DescribeIndexStatsAsync
-            // Instead, we'll try a simple query to verify the index is accessible
-            try
+            _logger.LogInformation("Initializing vector database index");
+
+            // Test with a simple query to check if the index is accessible
+            var testQuery = new
             {
-                // Try to query with a dummy vector to test connectivity
-                var dummyVector = new float[_options.VectorDimension];
-                var queryRequest = new
-                {
-                    vector = dummyVector,
-                    topK = 1,
-                    includeValues = false,
-                    includeMetadata = false
-                };
-                
-                var json = JsonSerializer.Serialize(queryRequest);
-                var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
-                
-                var response = await _httpClient.PostAsync($"{_baseUrl}/query", content);
-                
-                if (response.IsSuccessStatusCode)
-                {
-                    _logger.LogInformation("Index {IndexName} is ready and accessible", _options.IndexName);
-                    return true;
-                }
-                else
-                {
-                    _logger.LogError("Index {IndexName} is not accessible. Status: {StatusCode}", 
-                        _options.IndexName, response.StatusCode);
-                    return false;
-                }
+                vector = new float[384], // Dummy vector
+                topK = 1,
+                includeMetadata = false
+            };
+
+            var json = JsonSerializer.Serialize(testQuery);
+            var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PostAsync($"{_baseUrl}/query", content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("Vector database initialized and accessible");
+                return true;
             }
-            catch (HttpRequestException ex)
+            else
             {
-                _logger.LogError(ex, "Index {IndexName} not found or not accessible. Please check your Pinecone configuration.", _options.IndexName);
+                _logger.LogWarning("Vector database might not be fully initialized. Status: {Status}", response.StatusCode);
                 return false;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to initialize index {IndexName}", _options.IndexName);
+            _logger.LogError(ex, "Failed to initialize vector database index");
             return false;
         }
     }
@@ -283,18 +276,15 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
 
         try
         {
-            // For Serverless indexes, we can't get exact count via HTTP API
-            // We'll use a workaround: query with a large topK to get an estimate
-            var dummyVector = new float[_options.VectorDimension];
-            var queryRequest = new
+            // For Serverless indexes, we can't get exact count, so we'll estimate by querying with a large topK
+            var testQuery = new
             {
-                vector = dummyVector,
-                topK = 10000, // Large number to get as many as possible
-                includeValues = false,
+                vector = new float[384], // Dummy vector
+                topK = 10000, // Large number to get many results
                 includeMetadata = false
             };
-            
-            var json = JsonSerializer.Serialize(queryRequest);
+
+            var json = JsonSerializer.Serialize(testQuery);
             var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PostAsync($"{_baseUrl}/query", content);
@@ -302,25 +292,18 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             if (response.IsSuccessStatusCode)
             {
                 var responseContent = await response.Content.ReadAsStringAsync();
-                var queryResponse = JsonSerializer.Deserialize<QueryResponse>(responseContent);
+                var queryResponse = JsonSerializer.Deserialize<JsonElement>(responseContent);
                 
-                if (queryResponse?.Matches != null)
+                if (queryResponse.TryGetProperty("matches", out var matchesElement))
                 {
-                    var count = queryResponse.Matches.Count;
-                    _logger.LogInformation("Vector database is accessible and contains approximately {Count} vectors", count);
+                    var count = matchesElement.GetArrayLength();
+                    _logger.LogInformation("Estimated embedded movies count: {Count}", count);
                     return count;
                 }
-                else
-                {
-                    _logger.LogInformation("Vector database is accessible but contains no vectors");
-                    return 0;
-                }
             }
-            else
-            {
-                _logger.LogWarning("Vector database query failed. Status: {StatusCode}", response.StatusCode);
-                return 0;
-            }
+
+            _logger.LogWarning("Could not determine embedded movies count, returning 0");
+            return 0;
         }
         catch (Exception ex)
         {
@@ -341,7 +324,7 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to check if vector database is empty");
-            return true; // Assume empty if we can't check
+            return true;
         }
     }
 
@@ -351,11 +334,32 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
 
         try
         {
-            return await InitializeIndexAsync();
+            var testQuery = new
+            {
+                vector = new float[384], // Dummy vector
+                topK = 1,
+                includeMetadata = false
+            };
+
+            var json = JsonSerializer.Serialize(testQuery);
+            var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PostAsync($"{_baseUrl}/query", content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("Vector database health check passed");
+                return true;
+            }
+            else
+            {
+                _logger.LogError("Vector database health check failed. Status: {Status}", response.StatusCode);
+                return false;
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to check vector database health");
+            _logger.LogError(ex, "Vector database health check failed");
             return false;
         }
     }
@@ -368,23 +372,4 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             _disposed = true;
         }
     }
-}
-
-// Helper classes for JSON deserialization
-public class QueryResponse
-{
-    public List<VectorMatch>? Matches { get; set; }
-}
-
-public class VectorMatch
-{
-    public float? Score { get; set; }
-    public VectorMetadata? Metadata { get; set; }
-}
-
-public class VectorMetadata
-{
-    public string? MovieId { get; set; }
-    public string? Title { get; set; }
-    public string? PosterPath { get; set; }
 }

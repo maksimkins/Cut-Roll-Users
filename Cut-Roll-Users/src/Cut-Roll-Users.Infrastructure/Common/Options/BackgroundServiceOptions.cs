@@ -30,3 +30,4 @@ public class BackgroundServiceOptions
     /// </summary>
     public bool EnableAutoProcessing { get; set; } = true;
 }
+
