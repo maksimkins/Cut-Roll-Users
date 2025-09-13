@@ -316,10 +316,12 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
             float[] embedding;
             if (_inferenceSession != null)
             {
+                _logger.LogDebug("Using ONNX model for embedding generation");
                 embedding = GenerateEmbeddingWithOnnxAsync(text);
             }
             else
             {
+                _logger.LogDebug("Using fallback method for embedding generation");
                 embedding = GenerateFallbackEmbedding(text);
             }
 
@@ -599,8 +601,11 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         if (_inferenceSession == null)
             throw new InvalidOperationException("ONNX session not initialized");
 
+        _logger.LogInformation("Generating ONNX embedding for text: {Text}", text.Substring(0, Math.Min(100, text.Length)));
+
         // Tokenize text using proper tokenizer or fallback
         var inputIds = TokenizeText(text);
+        _logger.LogDebug("Tokenized text into {TokenCount} tokens", inputIds.Length);
 
         // Create input tensors
         var inputTensor = new DenseTensor<long>(inputIds, new[] { 1, inputIds.Length });
@@ -660,6 +665,8 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
     /// </summary>
     private float[] GenerateFallbackEmbedding(string text)
     {
+        _logger.LogInformation("Using fallback embedding generation for text: {Text}", text.Substring(0, Math.Min(100, text.Length)));
+        
         var words = text.ToLowerInvariant()
             .Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Where(w => w.Length > 2)
@@ -668,6 +675,8 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         var embeddingDimension = _pineconeOptions.VectorDimension;
         var embedding = new float[embeddingDimension];
         var wordCount = words.Length;
+        
+        _logger.LogDebug("Fallback embedding: {WordCount} words, dimension: {Dimension}", wordCount, embeddingDimension);
 
         if (wordCount == 0)
             return embedding;
