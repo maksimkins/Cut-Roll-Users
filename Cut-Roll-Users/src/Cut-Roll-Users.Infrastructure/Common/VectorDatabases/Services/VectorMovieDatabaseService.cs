@@ -51,11 +51,17 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         }
         
         // Set up authentication header
+        if (string.IsNullOrEmpty(_options.ApiKey))
+        {
+            _logger.LogError("PINECONE_API_KEY is null or empty! Check your environment variables.");
+            throw new InvalidOperationException("PINECONE_API_KEY is not configured");
+        }
+        
         _httpClient.DefaultRequestHeaders.Add("Api-Key", _options.ApiKey);
         
         _logger.LogInformation("VectorMovieDatabaseService initialized with Pinecone Serverless index: {IndexName} at {BaseUrl}", 
             _options.IndexName, _baseUrl);
-        _logger.LogInformation("API Key (first 10 chars): {ApiKeyPrefix}", 
+        _logger.LogWarning("API Key (first 10 chars): {ApiKeyPrefix}", 
             _options.ApiKey?.Length > 10 ? _options.ApiKey.Substring(0, 10) + "..." : _options.ApiKey);
     }
 
@@ -86,7 +92,8 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             var json = JsonSerializer.Serialize(upsertRequest);
             var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
-            _logger.LogDebug("Attempting to upsert embedding for movie {MovieId} to URL: {Url}", embedding.MovieId, $"{_baseUrl}/vectors/upsert");
+            _logger.LogWarning("Attempting to upsert embedding for movie {MovieId} to URL: {Url}", embedding.MovieId, $"{_baseUrl}/vectors/upsert");
+            _logger.LogWarning("Request headers: {Headers}", string.Join(", ", _httpClient.DefaultRequestHeaders.Select(h => $"{h.Key}={h.Value.FirstOrDefault()}")));
             
             var response = await _httpClient.PostAsync($"{_baseUrl}/vectors/upsert", content);
             
