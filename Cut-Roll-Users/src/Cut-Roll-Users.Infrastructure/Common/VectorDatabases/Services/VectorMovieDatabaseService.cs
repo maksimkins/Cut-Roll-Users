@@ -31,7 +31,7 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         _logger.LogInformation("  - API Key: {ApiKey}...", _options.ApiKey?.Substring(0, Math.Min(10, _options.ApiKey?.Length ?? 0)));
         _logger.LogInformation("  - Environment: {Environment}", _options.Environment);
         _logger.LogInformation("  - Index Name: {IndexName}", _options.IndexName);
-        _logger.LogInformation("  - Vector Dimensions: {VectorDimensions}", _options.VectorDimension);
+        _logger.LogInformation("  - Vector Dimensions: {VectorDimensions}", _options.VectorDimensions);
         
         // Use the specific Pinecone Serverless index URL
         _baseUrl = "https://movie-embeddings-svsa9sf.svc.aped-4627-b74a.pinecone.io";
@@ -122,55 +122,18 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             _logger.LogInformation("Finding similar movies with limit {Limit}, excluding {ExcludeCount} movies", 
                 limit, excludeMovieIds?.Count ?? 0);
 
-            // Test with a 384-dimensional vector (matching Pinecone index)
-            var testVector = new float[384];
-            // Fill with some test values
-            for (int i = 0; i < 384; i++)
-            {
-                testVector[i] = (float)(Math.Sin(i * 0.1) * 0.1); // Simple pattern for testing
-            }
-
-            // Debug all common 401 causes
-            _logger.LogInformation("=== DEBUGGING 401 CAUSES ===");
-            _logger.LogInformation("1. API Key check: {ApiKeyStatus}", 
-                string.IsNullOrEmpty(_options.ApiKey) ? "NULL/EMPTY" : $"Present (length: {_options.ApiKey.Length})");
-            _logger.LogInformation("2. Base URL check: {BaseUrl}", _baseUrl);
-            _logger.LogInformation("3. Full query URL: {FullUrl}", $"{_baseUrl}/query");
-            _logger.LogInformation("4. Vector dimensions: {Dimensions}", testVector.Length);
-            _logger.LogInformation("5. Vector sample: [{Sample}]", 
-                string.Join(", ", testVector.Take(5).Select(v => v.ToString("F6"))));
-
             var queryRequest = new
             {
-                vector = testVector, // Use the exact same vector from curl
-                topK = 3, // Use the exact same topK from curl
+                vector = queryVector.ToArray(),
+                topK = excludeMovieIds != null ? limit + excludeMovieIds.Count : limit,
                 includeMetadata = true
             };
 
             var json = JsonSerializer.Serialize(queryRequest);
-            _logger.LogInformation("6. Request JSON length: {Length}", json.Length);
-            _logger.LogInformation("7. Request JSON sample: {Sample}", json.Substring(0, Math.Min(200, json.Length)) + "...");
-
-            // Use clean HttpClient approach as suggested
-            using var client = new HttpClient();
-            client.DefaultRequestHeaders.Add("Api-Key", _options.ApiKey);
-            client.DefaultRequestHeaders.Add("User-Agent", "curl/7.68.0");
-
             var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
-            // Log final headers being sent
-            _logger.LogInformation("8. Final request headers:");
-            foreach (var header in client.DefaultRequestHeaders)
-            {
-                _logger.LogInformation("   {Key}: {Value}", header.Key, string.Join(", ", header.Value));
-            }
-
-            _logger.LogInformation("9. Making POST request to: {Url}", $"{_baseUrl}/query");
-            var response = await client.PostAsync($"{_baseUrl}/query", content);
+            var response = await _httpClient.PostAsync($"{_baseUrl}/query", content);
             var responseContent = await response.Content.ReadAsStringAsync();
-
-            _logger.LogInformation("10. Response status: {StatusCode}", response.StatusCode);
-            _logger.LogInformation("11. Response content: {Content}", responseContent);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -321,21 +284,38 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         }
     }
 
-    public Task<int> GetEmbeddedMoviesCountAsync()
+    public async Task<int> GetEmbeddedMoviesCountAsync()
     {
         if (_disposed) throw new ObjectDisposedException(nameof(VectorMovieDatabaseService));
 
         try
         {
-            // For now, return the known count from Pinecone (3075 embeddings)
-            // TODO: Implement proper describe_index_stats call when authentication is fixed
-            _logger.LogInformation("Returning known embedded movies count: 3075");
-            return Task.FromResult(3075);
+            // Use describe_index_stats endpoint to get actual count
+            var request = new HttpRequestMessage(HttpMethod.Get, $"{_baseUrl}/describe_index_stats");
+            request.Headers.Add("Api-Key", _options.ApiKey);
+
+            var response = await _httpClient.SendAsync(request);
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                var stats = JsonSerializer.Deserialize<JsonElement>(responseContent);
+                if (stats.TryGetProperty("total_vector_count", out var countElement))
+                {
+                    var count = countElement.GetInt32();
+                    _logger.LogInformation("Retrieved embedded movies count from Pinecone: {Count}", count);
+                    return count;
+                }
+            }
+
+            _logger.LogWarning("Failed to get vector count from Pinecone. Status: {Status}, Response: {Response}", 
+                response.StatusCode, responseContent);
+            return 0;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to get embedded movies count");
-            return Task.FromResult(0);
+            return 0;
         }
     }
 
@@ -355,21 +335,46 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         }
     }
 
-    public Task<bool> CheckVectorDbHealthAsync()
+    public async Task<bool> CheckVectorDbHealthAsync()
     {
         if (_disposed) throw new ObjectDisposedException(nameof(VectorMovieDatabaseService));
 
         try
         {
-            // For now, return true since we know Pinecone has embeddings and is working
-            // TODO: Implement proper health check when API key has query permissions
-            _logger.LogInformation("Vector database health check passed (known healthy state)");
-            return Task.FromResult(true);
+            // Test with a simple query to verify Pinecone connectivity
+            var testVector = new float[384]; // Create a test vector with correct dimensions
+            for (int i = 0; i < 384; i++)
+            {
+                testVector[i] = 0.1f; // Simple test values
+            }
+
+            var queryRequest = new
+            {
+                vector = testVector,
+                topK = 1,
+                includeMetadata = false
+            };
+
+            var json = JsonSerializer.Serialize(queryRequest);
+            var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PostAsync($"{_baseUrl}/query", content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("Vector database health check passed");
+                return true;
+            }
+            else
+            {
+                _logger.LogWarning("Vector database health check failed. Status: {Status}", response.StatusCode);
+                return false;
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Vector database health check failed");
-            return Task.FromResult(false);
+            return false;
         }
     }
 

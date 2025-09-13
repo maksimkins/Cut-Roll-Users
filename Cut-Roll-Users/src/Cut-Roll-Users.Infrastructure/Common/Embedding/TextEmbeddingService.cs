@@ -641,7 +641,7 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         var output = embeddingOutput.AsEnumerable<float>().ToArray();
         
         // Check if the output dimension matches expected Pinecone dimension
-        var expectedDimension = _pineconeOptions.VectorDimension;
+        var expectedDimension = _pineconeOptions.VectorDimensions;
         if (output.Length != expectedDimension)
         {
             _logger.LogWarning("ONNX model output dimension {Actual} does not match expected dimension {Expected}. Using fallback.", 
@@ -672,7 +672,7 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
             .Where(w => w.Length > 2)
             .ToArray();
 
-        var embeddingDimension = _pineconeOptions.VectorDimension;
+        var embeddingDimension = _pineconeOptions.VectorDimensions;
         var embedding = new float[embeddingDimension];
         var wordCount = words.Length;
         
