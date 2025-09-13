@@ -79,11 +79,11 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
                     {
                         id = embedding.MovieId.ToString(),
                         values = embedding.Embedding.ToArray(),
-                        metadata = new
+                        metadata = new Dictionary<string, object>
                         {
-                            movieId = embedding.MovieId.ToString(),
-                            title = embedding.Title,
-                            posterPath = embedding.PosterPath ?? ""
+                            ["movieId"] = embedding.MovieId.ToString(),
+                            ["title"] = embedding.Title,
+                            ["posterPath"] = embedding.PosterPath ?? ""
                         }
                     }
                 }
@@ -94,8 +94,14 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
 
             _logger.LogWarning("Attempting to upsert embedding for movie {MovieId} to URL: {Url}", embedding.MovieId, $"{_baseUrl}/vectors/upsert");
             _logger.LogWarning("Request headers: {Headers}", string.Join(", ", _httpClient.DefaultRequestHeaders.Select(h => $"{h.Key}={h.Value.FirstOrDefault()}")));
+            _logger.LogWarning("Request body: {RequestBody}", json);
             
-            var response = await _httpClient.PostAsync($"{_baseUrl}/vectors/upsert", content);
+            // Create a fresh request with explicit headers
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/vectors/upsert");
+            request.Headers.Add("Api-Key", _options.ApiKey);
+            request.Content = content;
+            
+            var response = await _httpClient.SendAsync(request);
             
             if (response.IsSuccessStatusCode)
             {
