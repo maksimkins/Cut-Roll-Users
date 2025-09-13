@@ -141,7 +141,17 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             _logger.LogInformation("Query request headers: {Headers}", string.Join("; ", headers));
             _logger.LogInformation("Query request body: {Body}", json);
 
-            var response = await _httpClient.PostAsync($"{_baseUrl}/query", content);
+            // Create a new request message to have full control
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/query");
+            request.Content = content;
+            
+            // Add headers explicitly to the request (not just default headers)
+            request.Headers.Add("Api-Key", _options.ApiKey);
+            request.Headers.Add("User-Agent", "Pinecone-Client/1.0");
+            
+            _logger.LogInformation("Making explicit HTTP request to: {Url}", request.RequestUri);
+            
+            var response = await _httpClient.SendAsync(request);
             var responseContent = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
