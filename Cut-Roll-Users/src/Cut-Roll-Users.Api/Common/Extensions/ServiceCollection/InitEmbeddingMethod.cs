@@ -19,5 +19,8 @@ public static class InitEmbeddingMethod
         // Configure Background Service Options
         var backgroundSection = configuration.GetSection("BackgroundServices");
         serviceCollection.Configure<BackgroundServiceOptions>(backgroundSection);
+
+        // Add Memory Cache for embedding caching
+        serviceCollection.AddMemoryCache();
     }
 }
