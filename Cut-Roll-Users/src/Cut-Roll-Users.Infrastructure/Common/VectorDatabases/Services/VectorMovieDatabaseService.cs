@@ -44,6 +44,10 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         
         // Add additional headers that might be required for Serverless
         _httpClient.DefaultRequestHeaders.Add("User-Agent", "Pinecone-Client/1.0");
+        
+        // Log the API key being used (first 10 chars for security)
+        _logger.LogInformation("VectorMovieDatabaseService initialized with API key: {ApiKey}...", 
+            _options.ApiKey?.Substring(0, Math.Min(10, _options.ApiKey?.Length ?? 0)));
     }
 
     public async Task<bool> UpsertMovieEmbeddingAsync(MovieEmbeddingDto embedding)
@@ -121,8 +125,13 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             var json = JsonSerializer.Serialize(queryRequest);
             var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
-            _logger.LogInformation("Query request headers: {Headers}", 
-                string.Join(", ", _httpClient.DefaultRequestHeaders.Select(h => $"{h.Key}={h.Value.FirstOrDefault()}")));
+            // Log headers manually to avoid LINQ issues
+            var headers = new List<string>();
+            foreach (var header in _httpClient.DefaultRequestHeaders)
+            {
+                headers.Add($"{header.Key}={string.Join(",", header.Value)}");
+            }
+            _logger.LogInformation("Query request headers: {Headers}", string.Join("; ", headers));
             _logger.LogInformation("Query request body: {Body}", json);
 
             var response = await _httpClient.PostAsync($"{_baseUrl}/query", content);
