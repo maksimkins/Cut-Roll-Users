@@ -27,14 +27,28 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         
-        // Initialize Pinecone client with proxy support for Traefik
-        var clientOptions = new ClientOptions
+        // Initialize Pinecone client with optional proxy support for Traefik
+        ClientOptions clientOptions;
+        
+        if (!string.IsNullOrEmpty(_options.ProxyHost) && _options.ProxyPort > 0)
         {
-            HttpClient = new HttpClient(new HttpClientHandler
+            // Use proxy if configured
+            clientOptions = new ClientOptions
             {
-                Proxy = new WebProxy($"{_options.ProxyHost}:{_options.ProxyPort}")
-            })
-        };
+                HttpClient = new HttpClient(new HttpClientHandler
+                {
+                    Proxy = new WebProxy($"{_options.ProxyHost}:{_options.ProxyPort}")
+                })
+            };
+            _logger.LogInformation("Using proxy {ProxyHost}:{ProxyPort} for Pinecone connection", 
+                _options.ProxyHost, _options.ProxyPort);
+        }
+        else
+        {
+            // Use direct connection
+            clientOptions = new ClientOptions();
+            _logger.LogInformation("Using direct connection to Pinecone (no proxy)");
+        }
         
         _client = new PineconeClient(_options.ApiKey, clientOptions);
         
