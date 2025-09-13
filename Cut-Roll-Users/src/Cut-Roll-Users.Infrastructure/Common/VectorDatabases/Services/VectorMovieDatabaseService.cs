@@ -52,7 +52,6 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         
         // Set up authentication header
         _httpClient.DefaultRequestHeaders.Add("Api-Key", _options.ApiKey);
-        _httpClient.DefaultRequestHeaders.Add("Content-Type", "application/json");
         
         _logger.LogInformation("VectorMovieDatabaseService initialized with Pinecone Serverless index: {IndexName} at {BaseUrl}", 
             _options.IndexName, _baseUrl);
