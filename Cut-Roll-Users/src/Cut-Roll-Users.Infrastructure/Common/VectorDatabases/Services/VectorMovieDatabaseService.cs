@@ -284,12 +284,12 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         try
         {
             // For Serverless indexes, we can't get exact count via HTTP API
-            // Instead, we'll try to query with a dummy vector to see if the index has any data
+            // We'll use a workaround: query with a large topK to get an estimate
             var dummyVector = new float[_options.VectorDimension];
             var queryRequest = new
             {
                 vector = dummyVector,
-                topK = 1,
+                topK = 10000, // Large number to get as many as possible
                 includeValues = false,
                 includeMetadata = false
             };
@@ -301,10 +301,20 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             
             if (response.IsSuccessStatusCode)
             {
-                // If we can query successfully, assume there are vectors
-                // We can't get exact count for Serverless, so return a positive number
-                _logger.LogInformation("Vector database is accessible and contains data");
-                return 1; // Return 1 to indicate non-empty
+                var responseContent = await response.Content.ReadAsStringAsync();
+                var queryResponse = JsonSerializer.Deserialize<QueryResponse>(responseContent);
+                
+                if (queryResponse?.Matches != null)
+                {
+                    var count = queryResponse.Matches.Count;
+                    _logger.LogInformation("Vector database is accessible and contains approximately {Count} vectors", count);
+                    return count;
+                }
+                else
+                {
+                    _logger.LogInformation("Vector database is accessible but contains no vectors");
+                    return 0;
+                }
             }
             else
             {
