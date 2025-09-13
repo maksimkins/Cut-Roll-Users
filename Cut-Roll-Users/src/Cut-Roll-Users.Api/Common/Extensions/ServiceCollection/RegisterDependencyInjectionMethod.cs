@@ -121,6 +121,7 @@ using Cut_Roll_Users.Infrastructure.Common.BackgroundServices;
 using Cut_Roll_Users.Infrastructure.Common.Embedding;
 using Cut_Roll_Users.Infrastructure.Common.MovieEmbeddings.Services;
 using Cut_Roll_Users.Infrastructure.Common.VectorDatabases.Services;
+using Cut_Roll_Users.Infrastructure.Common.DataProcessing;
 
 namespace Cut_Roll_Users.Api.Common.Extensions.ServiceCollection;
 
@@ -198,6 +199,7 @@ public static class RegisterDependencyInjectionMethod
         serviceCollection.AddTransient<IMovieEmbeddingService, MovieEmbeddingService>();
         serviceCollection.AddTransient<IVectorMovieDatabaseService, VectorMovieDatabaseService>();
         serviceCollection.AddTransient<IMovieDataExtractionService, MovieDataExtractionService>();
+        serviceCollection.AddTransient<ISqlDataReaderService, SqlDataReaderService>();
         serviceCollection.AddTransient<IUserPreferenceService, UserPreferenceService>();
 
         serviceCollection.AddHostedService<UserRabbitMqService>();
