@@ -103,9 +103,13 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             
             var response = await _httpClient.SendAsync(request);
             
+            // Log the response status
+            _logger.LogWarning("Upsert response for movie {MovieId}: Status={StatusCode}", embedding.MovieId, response.StatusCode);
+            
             if (response.IsSuccessStatusCode)
             {
-                _logger.LogDebug("Successfully upserted embedding for movie {MovieId}", embedding.MovieId);
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("Successfully upserted embedding for movie {MovieId}. Response: {Response}", embedding.MovieId, responseContent);
                 return true;
             }
             else
