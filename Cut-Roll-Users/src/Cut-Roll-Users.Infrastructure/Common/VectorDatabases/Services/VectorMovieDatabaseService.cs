@@ -122,6 +122,16 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             _logger.LogInformation("Finding similar movies with limit {Limit}, excluding {ExcludeCount} movies", 
                 limit, excludeMovieIds?.Count ?? 0);
 
+            // Debug all common 401 causes
+            _logger.LogInformation("=== DEBUGGING 401 CAUSES ===");
+            _logger.LogInformation("1. API Key check: {ApiKeyStatus}", 
+                string.IsNullOrEmpty(_options.ApiKey) ? "NULL/EMPTY" : $"Present (length: {_options.ApiKey.Length})");
+            _logger.LogInformation("2. Base URL check: {BaseUrl}", _baseUrl);
+            _logger.LogInformation("3. Full query URL: {FullUrl}", $"{_baseUrl}/query");
+            _logger.LogInformation("4. Vector dimensions: {Dimensions}", queryVector.Count);
+            _logger.LogInformation("5. Vector sample: [{Sample}]", 
+                string.Join(", ", queryVector.Take(5).Select(v => v.ToString("F6"))));
+
             var queryRequest = new
             {
                 vector = queryVector.ToArray(),
@@ -130,30 +140,29 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             };
 
             var json = JsonSerializer.Serialize(queryRequest);
+            _logger.LogInformation("6. Request JSON length: {Length}", json.Length);
+            _logger.LogInformation("7. Request JSON sample: {Sample}", json.Substring(0, Math.Min(200, json.Length)) + "...");
+
+            // Use clean HttpClient approach as suggested
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.Add("Api-Key", _options.ApiKey);
+            client.DefaultRequestHeaders.Add("User-Agent", "curl/7.68.0");
+
             var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
-            // Log headers manually to avoid LINQ issues
-            var headers = new List<string>();
-            foreach (var header in _httpClient.DefaultRequestHeaders)
+            // Log final headers being sent
+            _logger.LogInformation("8. Final request headers:");
+            foreach (var header in client.DefaultRequestHeaders)
             {
-                headers.Add($"{header.Key}={string.Join(",", header.Value)}");
+                _logger.LogInformation("   {Key}: {Value}", header.Key, string.Join(", ", header.Value));
             }
-            _logger.LogInformation("Query request headers: {Headers}", string.Join("; ", headers));
-            _logger.LogInformation("Query request body: {Body}", json);
 
-            // Try using curl-like approach with raw HTTP
-            _logger.LogInformation("Attempting curl-like HTTP request to: {Url}", $"{_baseUrl}/query");
-            
-            // Create a completely new HttpClient for this request (like curl)
-            using var testClient = new HttpClient();
-            testClient.DefaultRequestHeaders.Add("Api-Key", _options.ApiKey);
-            testClient.DefaultRequestHeaders.Add("User-Agent", "curl/7.68.0");
-            
-            _logger.LogInformation("Test client headers: {Headers}", 
-                string.Join("; ", testClient.DefaultRequestHeaders.Select(h => $"{h.Key}={string.Join(",", h.Value)}")));
-            
-            var response = await testClient.PostAsync($"{_baseUrl}/query", content);
+            _logger.LogInformation("9. Making POST request to: {Url}", $"{_baseUrl}/query");
+            var response = await client.PostAsync($"{_baseUrl}/query", content);
             var responseContent = await response.Content.ReadAsStringAsync();
+
+            _logger.LogInformation("10. Response status: {StatusCode}", response.StatusCode);
+            _logger.LogInformation("11. Response content: {Content}", responseContent);
 
             if (!response.IsSuccessStatusCode)
             {
