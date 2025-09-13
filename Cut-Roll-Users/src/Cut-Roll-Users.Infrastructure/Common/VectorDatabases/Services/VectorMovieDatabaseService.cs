@@ -121,6 +121,10 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             var json = JsonSerializer.Serialize(queryRequest);
             var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
+            _logger.LogInformation("Query request headers: {Headers}", 
+                string.Join(", ", _httpClient.DefaultRequestHeaders.Select(h => $"{h.Key}={h.Value.FirstOrDefault()}")));
+            _logger.LogInformation("Query request body: {Body}", json);
+
             var response = await _httpClient.PostAsync($"{_baseUrl}/query", content);
             var responseContent = await response.Content.ReadAsStringAsync();
 
