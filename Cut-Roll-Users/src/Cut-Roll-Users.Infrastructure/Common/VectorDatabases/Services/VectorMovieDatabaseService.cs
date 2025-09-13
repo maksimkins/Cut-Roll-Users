@@ -28,8 +28,8 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         
         // For Serverless indexes, we need to use the HTTP API directly
         // The base URL format for Serverless is: https://{index-name}-{environment}.svc.{region}.pinecone.io
-        // Based on your actual index, the format is: https://movie-imbeddings-svsa9sf.svc.aped-4627-b74a.pinecone.io
-        _baseUrl = $"https://{_options.IndexName}-svsa9sf.svc.{_options.Environment}.pinecone.io";
+        // Based on your actual index, the format is: https://movie-embeddings-svsa9sf.svc.aped-4627-b74a.pinecone.io
+        _baseUrl = "https://movie-embeddings-svsa9sf.svc.aped-4627-b74a.pinecone.io";
         
         // Initialize HTTP client with optional proxy support for Traefik
         if (!string.IsNullOrEmpty(_options.ProxyHost) && _options.ProxyPort > 0)
