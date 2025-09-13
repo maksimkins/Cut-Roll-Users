@@ -133,6 +133,6 @@ public class SqlDataReaderService : ISqlDataReaderService
 
     public async Task<int> GetTotalMovieCountAsync()
     {
-        return await _movieService.GetMoviesWithoutEmbeddingsCountAsync();
+        return await _movieService.CountMoviesAsync();
     }
 }
