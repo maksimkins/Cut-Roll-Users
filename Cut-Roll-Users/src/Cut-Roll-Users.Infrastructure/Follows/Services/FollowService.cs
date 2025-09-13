@@ -154,6 +154,24 @@ public class FollowService : IFollowService
         return await _followRepository.IsFollowOwnedByUserAsync(followerId, followingId);
     }
 
+    public async Task<bool> AreMutualFriendsAsync(string? userId1, string? userId2)
+    {
+        if (string.IsNullOrWhiteSpace(userId1))
+            throw new ArgumentException("User ID 1 cannot be null or empty.", nameof(userId1));
+        
+        if (string.IsNullOrWhiteSpace(userId2))
+            throw new ArgumentException("User ID 2 cannot be null or empty.", nameof(userId2));
+
+        if (userId1 == userId2)
+            throw new ArgumentException("User IDs must be different.", nameof(userId2));
+
+        // Check if both users follow each other
+        var user1FollowsUser2 = await _followRepository.FollowExistsAsync(userId1, userId2);
+        var user2FollowsUser1 = await _followRepository.FollowExistsAsync(userId2, userId1);
+
+        return user1FollowsUser2 && user2FollowsUser1;
+    }
+
     public async Task<IQueryable<Follow>> GetFollowsAsQueryableAsync()
     {
         return await _followRepository.GetFollowsAsQueryableAsync();

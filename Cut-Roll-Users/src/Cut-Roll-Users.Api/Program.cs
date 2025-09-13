@@ -11,6 +11,7 @@ builder.Services.InitDbContext(builder.Configuration);
 builder.Services.InitAuth(builder.Configuration);
 builder.Services.InitSwagger();
 builder.Services.InitCors();
+builder.Services.InitEmbedding(builder.Configuration);
 
 builder.Services.RegisterDependencyInjection();
 
@@ -22,6 +23,7 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 await app.UpdateDbContext();
+await app.InitEmbeddingBackground();
 
 app.UseSwagger();
 app.UseSwaggerUI();

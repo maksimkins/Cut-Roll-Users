@@ -56,6 +56,9 @@ using Cut_Roll_Users.Core.WatchedMovies.Repositories;
 using Cut_Roll_Users.Core.WatchedMovies.Services;
 using Cut_Roll_Users.Core.WantToWatchFilms.Repositories;
 using Cut_Roll_Users.Core.WantToWatchFilms.Services;
+using Cut_Roll_Users.Core.Common.BackgroundServices;
+using Cut_Roll_Users.Core.Common.DataProcessing;
+using Cut_Roll_Users.Core.MovieEmbeddings.Services;
 using Cut_Roll_Users.Infrastructure.Cast.Repositories;
 using Cut_Roll_Users.Infrastructure.Cast.Services;
 using Cut_Roll_Users.Infrastructure.Common.Services;
@@ -114,6 +117,10 @@ using Cut_Roll_Users.Infrastructure.WatchedMovies.Repositories;
 using Cut_Roll_Users.Infrastructure.WatchedMovies.Services;
 using Cut_Roll_Users.Infrastructure.WantToWatchFilms.Repositories;
 using Cut_Roll_Users.Infrastructure.WantToWatchFilms.Services;
+using Cut_Roll_Users.Infrastructure.Common.BackgroundServices;
+using Cut_Roll_Users.Infrastructure.Common.Embedding;
+using Cut_Roll_Users.Infrastructure.Common.MovieEmbeddings.Services;
+using Cut_Roll_Users.Infrastructure.Common.VectorDatabases.Services;
 
 namespace Cut_Roll_Users.Api.Common.Extensions.ServiceCollection;
 
@@ -184,7 +191,16 @@ public static class RegisterDependencyInjectionMethod
 
         serviceCollection.AddTransient<IMessageBrokerService, RabbitMqService>();
 
+        // Embedding Services
+        serviceCollection.AddTransient<IEmbeddingInitializationService, EmbeddingInitializationService>();
+        serviceCollection.AddTransient<IMovieEmbeddingBackgroundService, MovieEmbeddingBackgroundService>();
+        serviceCollection.AddTransient<ITextEmbeddingService, TextEmbeddingService>();
+        serviceCollection.AddTransient<IMovieEmbeddingService, MovieEmbeddingService>();
+        serviceCollection.AddTransient<IVectorMovieDatabaseService, VectorMovieDatabaseService>();
+        serviceCollection.AddTransient<IMovieDataExtractionService, MovieDataExtractionService>();
+        serviceCollection.AddTransient<IUserPreferenceService, UserPreferenceService>();
 
         serviceCollection.AddHostedService<UserRabbitMqService>();
+        serviceCollection.AddHostedService<MovieEmbeddingBackgroundService>();
     } 
 }

@@ -10,6 +10,7 @@ using Cut_Roll_Users.Core.Reviews.Dtos;
 using Cut_Roll_Users.Core.Common.DataProcessing;
 using Cut_Roll_Users.Core.WantToWatchFilms.Services;
 using Cut_Roll_Users.Core.WantToWatchFilms.Dtos;
+using Cut_Roll_Users.Core.Follows.Services;
 
 namespace Cut_Roll_Users.Infrastructure.Common.Services;
 
@@ -34,6 +35,7 @@ public class UserPreferenceService : IUserPreferenceService
     private readonly IMovieService _movieService;
     private readonly IReviewService _reviewService;
     private readonly IWantToWatchFilmService _wantToWatchFilmService;
+    private readonly IFollowService _followService;
     private readonly ILogger<UserPreferenceService> _logger;
 
     public UserPreferenceService(
@@ -43,6 +45,7 @@ public class UserPreferenceService : IUserPreferenceService
         IMovieService movieService,
         IReviewService reviewService,
         IWantToWatchFilmService wantToWatchFilmService,
+        IFollowService followService,
         ILogger<UserPreferenceService> logger)
     {
         _movieEmbeddingService = movieEmbeddingService ?? throw new ArgumentNullException(nameof(movieEmbeddingService));
@@ -51,6 +54,7 @@ public class UserPreferenceService : IUserPreferenceService
         _movieService = movieService ?? throw new ArgumentNullException(nameof(movieService));
         _reviewService = reviewService ?? throw new ArgumentNullException(nameof(reviewService));
         _wantToWatchFilmService = wantToWatchFilmService ?? throw new ArgumentNullException(nameof(wantToWatchFilmService));
+        _followService = followService ?? throw new ArgumentNullException(nameof(followService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -58,6 +62,16 @@ public class UserPreferenceService : IUserPreferenceService
     {
         try
         {
+            if (movieId == Guid.Empty)
+            {
+                throw new ArgumentException("Movie ID cannot be empty", nameof(movieId));
+            }
+
+            if (limit <= 0)
+            {
+                throw new ArgumentException("Limit must be greater than 0", nameof(limit));
+            }
+
             _logger.LogDebug("Getting similar movies for movie {MovieId} with limit {Limit}", movieId, limit);
 
             // Get movie data to generate query embedding
@@ -105,6 +119,16 @@ public class UserPreferenceService : IUserPreferenceService
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                throw new ArgumentException("User ID cannot be null or empty", nameof(userId));
+            }
+
+            if (limit <= 0)
+            {
+                throw new ArgumentException("Limit must be greater than 0", nameof(limit));
+            }
+
             _logger.LogDebug("Getting content-based recommendations for user {UserId} with limit {Limit}", userId, limit);
 
             // Analyze user preferences to get taste vector
@@ -736,6 +760,13 @@ public class UserPreferenceService : IUserPreferenceService
             if (request.UserId1 == request.UserId2)
             {
                 throw new ArgumentException("User IDs must be different");
+            }
+
+            // Check if users are mutual friends
+            var areMutualFriends = await _followService.AreMutualFriendsAsync(request.UserId1, request.UserId2);
+            if (!areMutualFriends)
+            {
+                throw new InvalidOperationException("Users must be mutual friends to get friend recommendations");
             }
 
             // Get both users' watched/liked movies

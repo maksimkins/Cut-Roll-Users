@@ -19,11 +19,17 @@ services:
       RABBIT_MQ_USERNAME: "${RABBIT_MQ_USERNAME}"
       RABBIT_MQ_PASSWORD: "${RABBIT_MQ_PASSWORD}"
       ASPNETCORE_ENVIRONMENT: "${ASPNETCORE_ENVIRONMENT}"
+      EMBEDDING_MODEL_PATH: "/app/Data/Models"
+      PINECONE_API_KEY: "${PINECONE_API_KEY}"
+      PINECONE_ENVIRONMENT: "${PINECONE_ENVIRONMENT}"
+      PINECONE_INDEX_NAME: "${PINECONE_INDEX_NAME}"
+      PINECONE_VECTOR_DIMENSIONS: "${PINECONE_VECTOR_DIMENSIONS}"
 
     expose:
       - "80" 
     volumes:
       - ./Data/SqlScripts:/app/SqlScripts
+      - ./Data/Models:/app/Data/Models  # Add this volume mount for the models
     depends_on:
       - postgres-users
     networks:

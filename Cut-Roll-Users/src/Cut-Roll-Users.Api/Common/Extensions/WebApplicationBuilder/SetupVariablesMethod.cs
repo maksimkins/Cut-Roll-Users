@@ -20,10 +20,12 @@ public static class SetupVariablesMethod
         var rabbit_mq_password = Environment.GetEnvironmentVariable("RABBIT_MQ_PASSWORD") ?? throw new SystemException("there is no var RABBIT_MQ_PASSWORD");
 
 
-        // var pinecone_api_key = Environment.GetEnvironmentVariable("PINECONE_API_KEY") ?? throw new SystemException("there is no var PINECONE_API_KEY");
-        // var pinecone_environment = Environment.GetEnvironmentVariable("PINECONE_ENVIRONMENT") ?? throw new SystemException("there is no var PINECONE_ENVIRONMENT");
-        // var pinecone_index_name = Environment.GetEnvironmentVariable("PINECONE_INDEX_NAME") ?? throw new SystemException("there is no PINECONE_INDEX_NAME");
-        // var pinecone_vector_dimensions = Environment.GetEnvironmentVariable("PINECONE_VECTOR_DIMENSIONS") ?? throw new SystemException("there is no PINECONE_VECTOR_DIMENSIONS");
+        var pinecone_api_key = Environment.GetEnvironmentVariable("PINECONE_API_KEY") ?? throw new SystemException("there is no var PINECONE_API_KEY");
+        var pinecone_environment = Environment.GetEnvironmentVariable("PINECONE_ENVIRONMENT") ?? throw new SystemException("there is no var PINECONE_ENVIRONMENT");
+        var pinecone_index_name = Environment.GetEnvironmentVariable("PINECONE_INDEX_NAME") ?? throw new SystemException("there is no PINECONE_INDEX_NAME");
+        var pinecone_vector_dimensions = Environment.GetEnvironmentVariable("PINECONE_VECTOR_DIMENSIONS") ?? throw new SystemException("there is no PINECONE_VECTOR_DIMENSIONS");
+
+        var embedding_model_path = Environment.GetEnvironmentVariable("EMBEDDING_MODEL_PATH") ?? throw new SystemException("there is no var EMBEDDING_MODEL_PATH");
 
 
         builder.Configuration["Jwt:Key"] = jwt_key;
@@ -37,9 +39,16 @@ public static class SetupVariablesMethod
         builder.Configuration["RabbitMq:UserName"] = rabbit_mq_username;
         builder.Configuration["RabbitMq:Password"] = rabbit_mq_password;
 
-        // builder.Configuration["Pinecone:ApiKey"] = pinecone_api_key;
-        // builder.Configuration["Pinecone:Environment"] = pinecone_environment;
-        // builder.Configuration["Pinecone:IndexName"] = pinecone_index_name;
-        // builder.Configuration["Pinecone:VectorDimensions"] = pinecone_vector_dimensions;
+        builder.Configuration["Pinecone:ApiKey"] = pinecone_api_key;
+        builder.Configuration["Pinecone:Environment"] = pinecone_environment;
+        builder.Configuration["Pinecone:IndexName"] = pinecone_index_name;
+        builder.Configuration["Pinecone:VectorDimensions"] = pinecone_vector_dimensions;
+
+        builder.Configuration["Embedding:ModelPath"] = embedding_model_path;
+        builder.Configuration["Embedding:BatchSize"] = "100";
+        builder.Configuration["Embedding:MaxRetries"] = "3";
+
+        builder.Configuration["BackgroundServices:EmbeddingProcessingInterval"] = "00:05:00";
+        builder.Configuration["BackgroundServices:MaxConcurrentBatches"] = "2";
     }
 }

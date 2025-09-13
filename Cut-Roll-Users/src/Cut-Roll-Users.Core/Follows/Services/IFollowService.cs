@@ -18,6 +18,7 @@ public interface IFollowService
     Task<PagedResult<FeedActivityDto>> GetUserFeedAsync(FeedPaginationDto? dto);
     Task<List<string>> GetFollowingUserIdsAsync(string? userId);
     Task<bool> IsFollowOwnedByUserAsync(string? followerId, string? followingId);
+    Task<bool> AreMutualFriendsAsync(string? userId1, string? userId2);
     Task<IQueryable<Follow>> GetFollowsAsQueryableAsync();
     
 }
