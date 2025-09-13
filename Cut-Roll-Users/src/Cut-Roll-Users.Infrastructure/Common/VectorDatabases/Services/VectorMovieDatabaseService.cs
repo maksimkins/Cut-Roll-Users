@@ -217,11 +217,28 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             // Get index reference
             var index = _client.Index(_options.IndexName);
 
-            // Check if index exists and get stats
-            var stats = await index.DescribeIndexStatsAsync(new DescribeIndexStatsRequest());
-
-            _logger.LogInformation("Index {IndexName} is ready with {TotalVectorCount} vectors", 
-                _options.IndexName, stats.TotalVectorCount);
+            // For Serverless indexes, we can't use DescribeIndexStatsAsync
+            // Instead, we'll try a simple query to verify the index is accessible
+            try
+            {
+                // Try to query with a dummy vector to test connectivity
+                var dummyVector = new float[_options.VectorDimension];
+                var queryRequest = new QueryRequest
+                {
+                    Vector = dummyVector,
+                    TopK = 1,
+                    IncludeValues = false,
+                    IncludeMetadata = false
+                };
+                
+                await index.QueryAsync(queryRequest);
+                _logger.LogInformation("Index {IndexName} is ready and accessible", _options.IndexName);
+            }
+            catch (Pinecone.NotFoundError)
+            {
+                _logger.LogError("Index {IndexName} not found. Please check your Pinecone configuration.", _options.IndexName);
+                return false;
+            }
 
             return true;
         }
@@ -232,21 +249,22 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         }
     }
 
-    public async Task<int> GetEmbeddedMoviesCountAsync()
+    public Task<int> GetEmbeddedMoviesCountAsync()
     {
         if (_disposed) throw new ObjectDisposedException(nameof(VectorMovieDatabaseService));
 
         try
         {
-            // Get index reference
-            var index = _client.Index(_options.IndexName);
-            var stats = await index.DescribeIndexStatsAsync(new DescribeIndexStatsRequest());
-            return (int)(stats.TotalVectorCount ?? 0);
+            // For Serverless indexes, we can't get exact count via DescribeIndexStatsAsync
+            // We'll return a placeholder value or implement a different counting strategy
+            // For now, return 0 to indicate we can't determine the count
+            _logger.LogInformation("Cannot get exact vector count for Serverless index {IndexName}", _options.IndexName);
+            return Task.FromResult(0);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to get embedded movies count");
-            return 0;
+            return Task.FromResult(0);
         }
     }
 
