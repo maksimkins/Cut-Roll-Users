@@ -12,4 +12,5 @@ public interface ICommentRepository :
     Task<PagedResult<CommentResponseDto>> GetByReviewIdAsync(CommentPaginationReviewDto dto);
     Task<PagedResult<CommentResponseDto>> GetByUserIdAsync(CommentPaginationUserDto dto);
     Task<int> GetCommentCountByReviewIdAsync(Guid reviewId);
+    Task<bool> ExistsAsync(string userId, Guid reviewId);
 }

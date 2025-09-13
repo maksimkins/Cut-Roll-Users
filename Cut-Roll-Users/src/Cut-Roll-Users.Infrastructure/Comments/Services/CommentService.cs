@@ -28,6 +28,10 @@ public class CommentService : ICommentService
         if (string.IsNullOrWhiteSpace(commentDto.Content))
             throw new ArgumentException("Comment content cannot be null or empty.", nameof(commentDto.Content));
 
+        var exists = await _commentRepository.ExistsAsync(commentDto.UserId, commentDto.ReviewId);
+        if (exists)
+            throw new InvalidOperationException($"Comment already exists for UserId: {commentDto.UserId} and ReviewId: {commentDto.ReviewId}");
+
         var result = await _commentRepository.CreateAsync(commentDto);
         return result ?? throw new InvalidOperationException("Failed to create comment.");
     }

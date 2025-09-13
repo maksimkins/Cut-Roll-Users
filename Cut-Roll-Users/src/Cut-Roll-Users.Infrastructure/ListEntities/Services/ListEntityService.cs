@@ -55,7 +55,7 @@ public class ListEntityService : IListEntityService
 
         var result = await _listEntityRepository.UpdateAsync(listUpdateDto);
         if (result == null)
-            throw new InvalidOperationException($"ListEntity not found with Id: {listUpdateDto.Id}");
+            throw new InvalidOperationException($"there was no updates for: {listUpdateDto.Id}");
         
         return result.Value;
     }

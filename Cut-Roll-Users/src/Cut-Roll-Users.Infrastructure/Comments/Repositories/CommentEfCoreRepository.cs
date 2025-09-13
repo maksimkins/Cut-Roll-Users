@@ -16,6 +16,10 @@ public class CommentEfCoreRepository : ICommentRepository
     {
         _context = context;
     }
+    public async Task<bool> ExistsAsync(string userId, Guid reviewId)
+    {
+        return await _context.Comments.AnyAsync(c => c.UserId == userId && c.ReviewId == reviewId);
+    }
 
     public async Task<Guid?> CreateAsync(CommentCreateDto entity)
     {
@@ -29,7 +33,7 @@ public class CommentEfCoreRepository : ICommentRepository
 
         _context.Comments.Add(comment);
         var result = await _context.SaveChangesAsync();
-        
+
         return result > 0 ? comment.ReviewId : null;
     }
 
