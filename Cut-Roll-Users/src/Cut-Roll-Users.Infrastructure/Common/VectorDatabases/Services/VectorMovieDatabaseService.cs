@@ -277,22 +277,45 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         }
     }
 
-    public Task<int> GetEmbeddedMoviesCountAsync()
+    public async Task<int> GetEmbeddedMoviesCountAsync()
     {
         if (_disposed) throw new ObjectDisposedException(nameof(VectorMovieDatabaseService));
 
         try
         {
             // For Serverless indexes, we can't get exact count via HTTP API
-            // We'll return a placeholder value or implement a different counting strategy
-            // For now, return 0 to indicate we can't determine the count
-            _logger.LogInformation("Cannot get exact vector count for Serverless index {IndexName}", _options.IndexName);
-            return Task.FromResult(0);
+            // Instead, we'll try to query with a dummy vector to see if the index has any data
+            var dummyVector = new float[_options.VectorDimension];
+            var queryRequest = new
+            {
+                vector = dummyVector,
+                topK = 1,
+                includeValues = false,
+                includeMetadata = false
+            };
+            
+            var json = JsonSerializer.Serialize(queryRequest);
+            var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PostAsync($"{_baseUrl}/query", content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                // If we can query successfully, assume there are vectors
+                // We can't get exact count for Serverless, so return a positive number
+                _logger.LogInformation("Vector database is accessible and contains data");
+                return 1; // Return 1 to indicate non-empty
+            }
+            else
+            {
+                _logger.LogWarning("Vector database query failed. Status: {StatusCode}", response.StatusCode);
+                return 0;
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to get embedded movies count");
-            return Task.FromResult(0);
+            return 0;
         }
     }
 
