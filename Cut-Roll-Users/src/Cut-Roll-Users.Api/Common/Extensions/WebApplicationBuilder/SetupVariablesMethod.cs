@@ -1,6 +1,7 @@
 namespace Cut_Roll_Users.Api.Common.Extensions.WebApplicationBuilder;
 
 using System;
+using System.IO;
 using Microsoft.AspNetCore.Builder;
 
 public static class SetupVariablesMethod
@@ -44,7 +45,7 @@ public static class SetupVariablesMethod
         builder.Configuration["Pinecone:IndexName"] = pinecone_index_name;
         builder.Configuration["Pinecone:VectorDimensions"] = pinecone_vector_dimensions;
 
-        builder.Configuration["Embedding:ModelPath"] = embedding_model_path;
+        builder.Configuration["Embedding:ModelPath"] = Path.Combine(embedding_model_path, "model.onnx");
         builder.Configuration["Embedding:BatchSize"] = "100";
         builder.Configuration["Embedding:MaxRetries"] = "3";
 
