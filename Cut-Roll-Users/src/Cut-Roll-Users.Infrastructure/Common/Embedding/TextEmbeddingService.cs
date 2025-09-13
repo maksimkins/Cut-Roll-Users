@@ -618,13 +618,41 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
 
         // Run inference
         using var results = _inferenceSession.Run(inputs);
-        var output = results.First().AsEnumerable<float>().ToArray();
+        
+        // Debug: Log available outputs
+        _logger.LogDebug("ONNX model outputs: {Count}", results.Count());
+        foreach (var result in results)
+        {
+            var dimensions = result.AsTensor<float>().Dimensions.ToArray();
+            _logger.LogDebug("Output name: {Name}, Shape: {Shape}", result.Name, string.Join("x", dimensions));
+        }
+        
+        // Try to find the correct output (usually named 'last_hidden_state' or similar)
+        var embeddingOutput = results.FirstOrDefault(r => 
+            r.Name.Contains("last_hidden_state") || 
+            r.Name.Contains("pooler_output") || 
+            r.Name.Contains("embeddings")) ?? results.Last();
+            
+        var output = embeddingOutput.AsEnumerable<float>().ToArray();
+        
+        // Check if the output dimension matches expected Pinecone dimension
+        var expectedDimension = _pineconeOptions.VectorDimension;
+        if (output.Length != expectedDimension)
+        {
+            _logger.LogWarning("ONNX model output dimension {Actual} does not match expected dimension {Expected}. Using fallback.", 
+                output.Length, expectedDimension);
+            return GenerateFallbackEmbedding(text);
+        }
 
         // Normalize the embedding
         var norm = Math.Sqrt(output.Sum(x => x * x));
-        var normalizedOutput = output.Select(x => (float)(x / norm)).ToArray();
+        if (norm > 0)
+        {
+            var normalizedOutput = output.Select(x => (float)(x / norm)).ToArray();
+            return normalizedOutput;
+        }
         
-        return normalizedOutput;
+        return output;
     }
 
     /// <summary>
