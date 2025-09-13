@@ -602,11 +602,18 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         // Tokenize text using proper tokenizer or fallback
         var inputIds = TokenizeText(text);
 
-        // Create input tensor
+        // Create input tensors
         var inputTensor = new DenseTensor<long>(inputIds, new[] { 1, inputIds.Length });
+        
+        // Create attention mask (1 for real tokens, 0 for padding)
+        var attentionMask = new long[inputIds.Length];
+        Array.Fill(attentionMask, 1L); // All tokens are real (no padding in our case)
+        var attentionMaskTensor = new DenseTensor<long>(attentionMask, new[] { 1, attentionMask.Length });
+        
         var inputs = new List<NamedOnnxValue>
         {
-            NamedOnnxValue.CreateFromTensor("input_ids", inputTensor)
+            NamedOnnxValue.CreateFromTensor("input_ids", inputTensor),
+            NamedOnnxValue.CreateFromTensor("attention_mask", attentionMaskTensor)
         };
 
         // Run inference
