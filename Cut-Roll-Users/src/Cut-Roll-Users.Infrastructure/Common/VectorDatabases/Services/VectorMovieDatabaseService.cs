@@ -141,17 +141,18 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             _logger.LogInformation("Query request headers: {Headers}", string.Join("; ", headers));
             _logger.LogInformation("Query request body: {Body}", json);
 
-            // Create a new request message to have full control
-            var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/query");
-            request.Content = content;
+            // Try using curl-like approach with raw HTTP
+            _logger.LogInformation("Attempting curl-like HTTP request to: {Url}", $"{_baseUrl}/query");
             
-            // Add headers explicitly to the request (not just default headers)
-            request.Headers.Add("Api-Key", _options.ApiKey);
-            request.Headers.Add("User-Agent", "Pinecone-Client/1.0");
+            // Create a completely new HttpClient for this request (like curl)
+            using var testClient = new HttpClient();
+            testClient.DefaultRequestHeaders.Add("Api-Key", _options.ApiKey);
+            testClient.DefaultRequestHeaders.Add("User-Agent", "curl/7.68.0");
             
-            _logger.LogInformation("Making explicit HTTP request to: {Url}", request.RequestUri);
+            _logger.LogInformation("Test client headers: {Headers}", 
+                string.Join("; ", testClient.DefaultRequestHeaders.Select(h => $"{h.Key}={string.Join(",", h.Value)}")));
             
-            var response = await _httpClient.SendAsync(request);
+            var response = await testClient.PostAsync($"{_baseUrl}/query", content);
             var responseContent = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
