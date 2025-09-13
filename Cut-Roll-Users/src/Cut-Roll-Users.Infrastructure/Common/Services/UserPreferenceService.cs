@@ -72,40 +72,47 @@ public class UserPreferenceService : IUserPreferenceService
                 throw new ArgumentException("Limit must be greater than 0", nameof(limit));
             }
 
-            _logger.LogDebug("Getting similar movies for movie {MovieId} with limit {Limit}", movieId, limit);
+            _logger.LogInformation("Getting similar movies for movie {MovieId} with limit {Limit}", movieId, limit);
 
             // Get movie data to generate query embedding
+            _logger.LogInformation("Step 1: Fetching movie from database...");
             var movie = await _movieService.GetMovieByIdAsync(movieId);
             if (movie == null)
             {
-                _logger.LogWarning("Movie {MovieId} not found", movieId);
+                _logger.LogWarning("Movie {MovieId} not found in database", movieId);
                 return new List<MovieRecommendationDto>();
             }
+            _logger.LogInformation("Step 1: Movie found - {Title}", movie.Title);
 
             // Convert Movie to MovieDataForEmbeddingDto
+            _logger.LogInformation("Step 2: Converting movie to embedding data...");
             var movieData = ConvertMovieToEmbeddingData(movie);
             if (movieData == null)
             {
                 _logger.LogWarning("Could not convert movie {MovieId} to embedding data", movieId);
                 return new List<MovieRecommendationDto>();
             }
+            _logger.LogInformation("Step 2: Movie data converted successfully");
 
             // Generate embedding for the movie
+            _logger.LogInformation("Step 3: Generating embedding for movie...");
             var movieEmbedding = await _textEmbeddingService.GenerateMovieEmbeddingAsync(movieData);
             if (movieEmbedding == null || !movieEmbedding.Any())
             {
                 _logger.LogWarning("Failed to generate embedding for movie {MovieId}", movieId);
                 return new List<MovieRecommendationDto>();
             }
+            _logger.LogInformation("Step 3: Embedding generated - {Dimension} dimensions", movieEmbedding.Count);
 
             // Find similar movies using vector database
+            _logger.LogInformation("Step 4: Querying Pinecone for similar movies...");
             var similarMovies = await _vectorDatabaseService.FindSimilarMoviesAsync(
                 movieEmbedding, 
                 limit + 1, // +1 to exclude the original movie
                 new List<Guid> { movieId } // Exclude the original movie
             );
 
-            _logger.LogDebug("Found {Count} similar movies for movie {MovieId}", similarMovies.Count, movieId);
+            _logger.LogInformation("Step 4: Found {Count} similar movies for movie {MovieId}", similarMovies.Count, movieId);
             return similarMovies;
         }
         catch (Exception ex)
