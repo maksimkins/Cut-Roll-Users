@@ -88,11 +88,12 @@ public class MovieEmbeddingBackgroundService : BackgroundService, IMovieEmbeddin
             using var scope = _serviceProvider.CreateScope();
             var movieEmbeddingService = scope.ServiceProvider.GetRequiredService<IMovieEmbeddingService>();
             var sqlDataReaderService = scope.ServiceProvider.GetRequiredService<ISqlDataReaderService>();
+            var movieService = scope.ServiceProvider.GetRequiredService<IMovieService>();
 
             // Get count of movies without embeddings
             var totalMovies = await sqlDataReaderService.GetTotalMovieCountAsync();
-            var processedMovies = await movieEmbeddingService.GetProcessedMovieCountAsync();
-            var newMoviesCount = totalMovies - processedMovies;
+            var moviesWithoutEmbeddings = await movieService.GetMoviesWithoutEmbeddingsCountAsync();
+            var newMoviesCount = moviesWithoutEmbeddings;
 
             if (newMoviesCount <= 0)
             {
@@ -104,11 +105,11 @@ public class MovieEmbeddingBackgroundService : BackgroundService, IMovieEmbeddin
 
             // Process movies in batches
             var batchSize = _options.BatchSize;
-            var offset = processedMovies;
+            var offset = 0; // Start from the beginning since we're processing movies without embeddings
             var processedInCycle = 0;
             var failedInCycle = 0;
 
-            while (offset < totalMovies)
+            while (offset < newMoviesCount)
             {
                 var (successCount, failedCount) = await movieEmbeddingService.ProcessMoviesBatchAsync(offset, batchSize);
                 
