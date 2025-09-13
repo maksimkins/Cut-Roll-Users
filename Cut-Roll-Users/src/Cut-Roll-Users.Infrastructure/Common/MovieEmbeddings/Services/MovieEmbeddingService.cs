@@ -182,9 +182,10 @@ public class MovieEmbeddingService : IMovieEmbeddingService
     {
         try
         {
-            _logger.LogDebug("Processing movies batch: offset {Offset}, limit {Limit}", offset, limit);
+            _logger.LogInformation("Processing movies batch: offset {Offset}, limit {Limit}", offset, limit);
 
             var movies = await _sqlDataReaderService.ExtractMovieDataBatchAsync(offset, limit);
+            _logger.LogInformation("Retrieved {MovieCount} movies for batch processing", movies.Count);
             var successCount = 0;
             var failedCount = 0;
 
@@ -209,7 +210,7 @@ public class MovieEmbeddingService : IMovieEmbeddingService
                 }
             }
 
-            _logger.LogDebug("Completed batch processing. Success: {Success}, Failed: {Failed}", successCount, failedCount);
+            _logger.LogInformation("Completed batch processing. Success: {Success}, Failed: {Failed}", successCount, failedCount);
             return (successCount, failedCount);
         }
         catch (Exception ex)
