@@ -55,6 +55,8 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         
         _logger.LogInformation("VectorMovieDatabaseService initialized with Pinecone Serverless index: {IndexName} at {BaseUrl}", 
             _options.IndexName, _baseUrl);
+        _logger.LogInformation("API Key (first 10 chars): {ApiKeyPrefix}", 
+            _options.ApiKey?.Length > 10 ? _options.ApiKey.Substring(0, 10) + "..." : _options.ApiKey);
     }
 
     public async Task<bool> UpsertMovieEmbeddingAsync(MovieEmbeddingDto embedding)
@@ -84,6 +86,8 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             var json = JsonSerializer.Serialize(upsertRequest);
             var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
+            _logger.LogDebug("Attempting to upsert embedding for movie {MovieId} to URL: {Url}", embedding.MovieId, $"{_baseUrl}/vectors/upsert");
+            
             var response = await _httpClient.PostAsync($"{_baseUrl}/vectors/upsert", content);
             
             if (response.IsSuccessStatusCode)
@@ -94,8 +98,8 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             else
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("Failed to upsert embedding for movie {MovieId}. Status: {StatusCode}, Error: {Error}", 
-                    embedding.MovieId, response.StatusCode, errorContent);
+                _logger.LogError("Failed to upsert embedding for movie {MovieId}. Status: {StatusCode}, Error: {Error}, URL: {Url}", 
+                    embedding.MovieId, response.StatusCode, errorContent, $"{_baseUrl}/vectors/upsert");
                 return false;
             }
         }
