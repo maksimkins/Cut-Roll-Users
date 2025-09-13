@@ -50,6 +50,8 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             _logger.LogInformation("Using direct connection to Pinecone (no proxy)");
         }
         
+        // For Serverless indexes, we use the standard constructor
+        // The environment is handled automatically by Pinecone
         _client = new PineconeClient(_options.ApiKey, clientOptions);
         
         _logger.LogInformation("VectorMovieDatabaseService initialized with Pinecone index: {IndexName}", _options.IndexName);
