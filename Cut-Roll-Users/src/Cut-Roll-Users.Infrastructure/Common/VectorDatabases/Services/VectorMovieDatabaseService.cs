@@ -26,6 +26,13 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         
+        // Log configuration values
+        _logger.LogInformation("Pinecone configuration loaded:");
+        _logger.LogInformation("  - API Key: {ApiKey}...", _options.ApiKey?.Substring(0, Math.Min(10, _options.ApiKey?.Length ?? 0)));
+        _logger.LogInformation("  - Environment: {Environment}", _options.Environment);
+        _logger.LogInformation("  - Index Name: {IndexName}", _options.IndexName);
+        _logger.LogInformation("  - Vector Dimensions: {VectorDimensions}", _options.VectorDimension);
+        
         // Use the specific Pinecone Serverless index URL
         _baseUrl = "https://movie-embeddings-svsa9sf.svc.aped-4627-b74a.pinecone.io";
         
