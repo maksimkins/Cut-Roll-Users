@@ -26,7 +26,7 @@
     <!-- Embedding and ML packages -->
     <PackageReference Include="Microsoft.ML" Version="3.0.1" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.16.3" />
-    <PackageReference Include="Pinecone.Client" Version="3.0.0" />
+    <PackageReference Include="Pinecone.Client" Version="4.0.2" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
