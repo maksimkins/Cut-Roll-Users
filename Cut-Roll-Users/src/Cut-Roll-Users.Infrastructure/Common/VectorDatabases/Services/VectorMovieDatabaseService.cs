@@ -75,12 +75,18 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
                         }
                     }
                 },
-                Namespace = _options.Namespace ?? "default"
+                Namespace = _options.Namespace ?? "__default__"
             };
 
-            await _index.UpsertAsync(upsertRequest);
+            var upsertResponse = await _index.UpsertAsync(upsertRequest);
 
-            _logger.LogInformation("Successfully upserted embedding for movie {MovieId}", embedding.MovieId);
+            _logger.LogInformation("Successfully upserted embedding for movie {MovieId}. Upserted count: {UpsertedCount}", 
+                embedding.MovieId, upsertResponse.UpsertedCount);
+            
+            // Log the response details
+            _logger.LogInformation("Upsert response - Upserted: {Upserted}", 
+                upsertResponse.UpsertedCount);
+            
             return true;
         }
         catch (Exception ex)
@@ -102,10 +108,20 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             _logger.LogInformation("Query vector dimensions: {Dimensions}, First 5 values: [{Values}]", 
                 queryVector.Count, string.Join(", ", queryVector.Take(5)));
 
+            // Check index stats first
+            var totalVectors = await GetEmbeddedMoviesCountAsync();
+            _logger.LogInformation("Pinecone index contains {TotalVectors} vectors", totalVectors);
+
+            if (totalVectors == 0)
+            {
+                _logger.LogWarning("Pinecone index is empty! No movies have been embedded yet.");
+                return new List<MovieRecommendationDto>();
+            }
+
             var queryResponse = await _index.QueryAsync(new QueryRequest
             {
                 Vector = queryVector.ToArray(),
-                Namespace = _options.Namespace ?? "default",
+                Namespace = _options.Namespace ?? "__default__",
                 TopK = (uint)(excludeMovieIds != null ? limit + excludeMovieIds.Count : limit),
                 IncludeMetadata = true
             });
@@ -190,7 +206,7 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
                     ["title"] = embedding.Title,
                     ["posterPath"] = embedding.PosterPath ?? string.Empty
                 },
-                Namespace = _options.Namespace ?? "default"
+                Namespace = _options.Namespace ?? "__default__"
             };
 
             await _index.UpdateAsync(updateRequest);
@@ -223,7 +239,7 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             await _index.DeleteAsync(new DeleteRequest
             {
                 Ids = new[] { movieId.ToString() },
-                Namespace = _options.Namespace ?? "default"
+                Namespace = _options.Namespace ?? "__default__"
             });
 
             _logger.LogInformation("Successfully deleted embedding for movie {MovieId}", movieId);
@@ -249,7 +265,7 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             var response = await _index.QueryAsync(new QueryRequest
             {
                 Vector = testVector,
-                Namespace = _options.Namespace ?? "default",
+                Namespace = _options.Namespace ?? "__default__",
                 TopK = 1,
                 IncludeMetadata = false
             });
@@ -315,7 +331,7 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             var response = await _index.QueryAsync(new QueryRequest
             {
                 Vector = testVector,
-                Namespace = _options.Namespace ?? "default",
+                Namespace = _options.Namespace ?? "__default__",
                 TopK = 1,
                 IncludeMetadata = false
             });

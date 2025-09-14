@@ -8,7 +8,7 @@ public class PineconeOptions
     public int VectorDimensions { get; set; } = 384;
     
     // Namespace configuration
-    public string? Namespace { get; set; } = "default";
+    public string? Namespace { get; set; } = "__default__";
     
     // Search configuration
     public string[]? SearchFields { get; set; } = ["title", "posterPath", "movieId"];
