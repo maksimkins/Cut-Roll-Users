@@ -389,85 +389,113 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
     {
         var textParts = new List<string>();
 
-        // Basic movie information
-        textParts.Add($"Title: {movieData.Title}");
+        // Basic movie information with unique identifiers
+        textParts.Add($"MOVIE_TITLE: {movieData.Title}");
         
         if (!string.IsNullOrEmpty(movieData.OriginalTitle) && movieData.OriginalTitle != movieData.Title)
         {
-            textParts.Add($"Original Title: {movieData.OriginalTitle}");
+            textParts.Add($"ORIGINAL_TITLE: {movieData.OriginalTitle}");
         }
+
+        // Add unique movie ID for better distinction
+        textParts.Add($"MOVIE_ID: {movieData.Id}");
 
         if (!string.IsNullOrEmpty(movieData.Overview))
         {
-            textParts.Add($"Overview: {movieData.Overview}");
+            textParts.Add($"PLOT: {movieData.Overview}");
         }
 
         if (!string.IsNullOrEmpty(movieData.Tagline))
         {
-            textParts.Add($"Tagline: {movieData.Tagline}");
+            textParts.Add($"TAGLINE: {movieData.Tagline}");
         }
 
-        // Genres
+        // Genres with weighted importance
         if (movieData.Genres.Any())
         {
-            textParts.Add($"Genres: {string.Join(", ", movieData.Genres)}");
+            var genreText = string.Join(" ", movieData.Genres.Select(g => $"GENRE_{g}"));
+            textParts.Add(genreText);
         }
 
-        // Keywords
+        // Keywords with weighted importance
         if (movieData.Keywords.Any())
         {
-            textParts.Add($"Keywords: {string.Join(", ", movieData.Keywords)}");
+            var keywordText = string.Join(" ", movieData.Keywords.Select(k => $"KEYWORD_{k}"));
+            textParts.Add(keywordText);
         }
 
-        // Cast (top 10)
+        // Cast with character names and actor names
         if (movieData.Cast.Any())
         {
-            var topCast = movieData.Cast.Take(10);
-            textParts.Add($"Cast: {string.Join(", ", topCast)}");
+            var topCast = movieData.Cast.Take(15); // Increased from 10
+            var castText = string.Join(" ", topCast.Select(c => $"ACTOR_{c}"));
+            textParts.Add(castText);
         }
 
-        // Crew (top 10)
+        // Crew with specific roles
         if (movieData.Crew.Any())
         {
-            var topCrew = movieData.Crew.Take(10);
-            textParts.Add($"Crew: {string.Join(", ", topCrew)}");
+            var topCrew = movieData.Crew.Take(15); // Increased from 10
+            var crewText = string.Join(" ", topCrew.Select(c => $"CREW_{c}"));
+            textParts.Add(crewText);
         }
 
-        // Production companies
+        // Production companies with weighted importance
         if (movieData.ProductionCompanies.Any())
         {
-            textParts.Add($"Production Companies: {string.Join(", ", movieData.ProductionCompanies)}");
+            var companyText = string.Join(" ", movieData.ProductionCompanies.Select(pc => $"STUDIO_{pc}"));
+            textParts.Add(companyText);
         }
 
         // Production countries
         if (movieData.ProductionCountries.Any())
         {
-            textParts.Add($"Production Countries: {string.Join(", ", movieData.ProductionCountries)}");
+            var countryText = string.Join(" ", movieData.ProductionCountries.Select(pc => $"COUNTRY_{pc}"));
+            textParts.Add(countryText);
         }
 
         // Spoken languages
         if (movieData.SpokenLanguages.Any())
         {
-            textParts.Add($"Languages: {string.Join(", ", movieData.SpokenLanguages)}");
+            var languageText = string.Join(" ", movieData.SpokenLanguages.Select(sl => $"LANGUAGE_{sl}"));
+            textParts.Add(languageText);
         }
 
-        // Additional metadata
+        // Additional metadata with specific formatting
         if (movieData.ReleaseDate.HasValue)
         {
-            textParts.Add($"Release Year: {movieData.ReleaseDate.Value.Year}");
+            textParts.Add($"YEAR_{movieData.ReleaseDate.Value.Year}");
+            textParts.Add($"DECADE_{movieData.ReleaseDate.Value.Year / 10 * 10}s");
         }
 
         if (movieData.Runtime.HasValue)
         {
-            textParts.Add($"Runtime: {movieData.Runtime.Value} minutes");
+            var runtimeCategory = movieData.Runtime.Value switch
+            {
+                < 90 => "SHORT_FILM",
+                < 120 => "STANDARD_LENGTH",
+                < 180 => "LONG_FILM",
+                _ => "EPIC_LENGTH"
+            };
+            textParts.Add($"RUNTIME_{runtimeCategory}_{movieData.Runtime.Value}min");
         }
 
         if (movieData.Budget.HasValue && movieData.Budget.Value > 0)
         {
-            textParts.Add($"Budget: ${movieData.Budget.Value:N0}");
+            var budgetCategory = movieData.Budget.Value switch
+            {
+                < 1000000 => "LOW_BUDGET",
+                < 10000000 => "MEDIUM_BUDGET",
+                < 100000000 => "HIGH_BUDGET",
+                _ => "BLOCKBUSTER_BUDGET"
+            };
+            textParts.Add($"BUDGET_{budgetCategory}");
         }
 
-        return string.Join(" | ", textParts);
+        // Add movie uniqueness markers
+        textParts.Add($"UNIQUE_MOVIE_{movieData.Id.ToString().Substring(0, 8)}");
+
+        return string.Join(" ", textParts);
     }
 
     /// <summary>
@@ -477,85 +505,113 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
     {
         var textParts = new List<string>();
 
-        // Basic movie information
-        textParts.Add($"Title: {movieData.Title}");
+        // Basic movie information with unique identifiers
+        textParts.Add($"MOVIE_TITLE: {movieData.Title}");
         
         if (!string.IsNullOrEmpty(movieData.OriginalTitle) && movieData.OriginalTitle != movieData.Title)
         {
-            textParts.Add($"Original Title: {movieData.OriginalTitle}");
+            textParts.Add($"ORIGINAL_TITLE: {movieData.OriginalTitle}");
         }
+
+        // Add unique movie ID for better distinction
+        textParts.Add($"MOVIE_ID: {movieData.Id}");
 
         if (!string.IsNullOrEmpty(movieData.Overview))
         {
-            textParts.Add($"Overview: {movieData.Overview}");
+            textParts.Add($"PLOT: {movieData.Overview}");
         }
 
         if (!string.IsNullOrEmpty(movieData.Tagline))
         {
-            textParts.Add($"Tagline: {movieData.Tagline}");
+            textParts.Add($"TAGLINE: {movieData.Tagline}");
         }
 
-        // Genres
+        // Genres with weighted importance
         if (movieData.Genres.Any())
         {
-            textParts.Add($"Genres: {string.Join(", ", movieData.Genres)}");
+            var genreText = string.Join(" ", movieData.Genres.Select(g => $"GENRE_{g}"));
+            textParts.Add(genreText);
         }
 
-        // Keywords
+        // Keywords with weighted importance
         if (movieData.Keywords.Any())
         {
-            textParts.Add($"Keywords: {string.Join(", ", movieData.Keywords)}");
+            var keywordText = string.Join(" ", movieData.Keywords.Select(k => $"KEYWORD_{k}"));
+            textParts.Add(keywordText);
         }
 
-        // Cast (top 10)
+        // Cast with character names and actor names
         if (movieData.Cast.Any())
         {
-            var topCast = movieData.Cast.Take(10);
-            textParts.Add($"Cast: {string.Join(", ", topCast)}");
+            var topCast = movieData.Cast.Take(15); // Increased from 10
+            var castText = string.Join(" ", topCast.Select(c => $"ACTOR_{c}"));
+            textParts.Add(castText);
         }
 
-        // Crew (top 10)
+        // Crew with specific roles
         if (movieData.Crew.Any())
         {
-            var topCrew = movieData.Crew.Take(10);
-            textParts.Add($"Crew: {string.Join(", ", topCrew)}");
+            var topCrew = movieData.Crew.Take(15); // Increased from 10
+            var crewText = string.Join(" ", topCrew.Select(c => $"CREW_{c}"));
+            textParts.Add(crewText);
         }
 
-        // Production companies
+        // Production companies with weighted importance
         if (movieData.ProductionCompanies.Any())
         {
-            textParts.Add($"Production Companies: {string.Join(", ", movieData.ProductionCompanies)}");
+            var companyText = string.Join(" ", movieData.ProductionCompanies.Select(pc => $"STUDIO_{pc}"));
+            textParts.Add(companyText);
         }
 
         // Production countries
         if (movieData.ProductionCountries.Any())
         {
-            textParts.Add($"Production Countries: {string.Join(", ", movieData.ProductionCountries)}");
+            var countryText = string.Join(" ", movieData.ProductionCountries.Select(pc => $"COUNTRY_{pc}"));
+            textParts.Add(countryText);
         }
 
         // Spoken languages
         if (movieData.SpokenLanguages.Any())
         {
-            textParts.Add($"Languages: {string.Join(", ", movieData.SpokenLanguages)}");
+            var languageText = string.Join(" ", movieData.SpokenLanguages.Select(sl => $"LANGUAGE_{sl}"));
+            textParts.Add(languageText);
         }
 
-        // Additional metadata
+        // Additional metadata with specific formatting
         if (movieData.ReleaseDate.HasValue)
         {
-            textParts.Add($"Release Year: {movieData.ReleaseDate.Value.Year}");
+            textParts.Add($"YEAR_{movieData.ReleaseDate.Value.Year}");
+            textParts.Add($"DECADE_{movieData.ReleaseDate.Value.Year / 10 * 10}s");
         }
 
         if (movieData.Runtime.HasValue)
         {
-            textParts.Add($"Runtime: {movieData.Runtime.Value} minutes");
+            var runtimeCategory = movieData.Runtime.Value switch
+            {
+                < 90 => "SHORT_FILM",
+                < 120 => "STANDARD_LENGTH",
+                < 180 => "LONG_FILM",
+                _ => "EPIC_LENGTH"
+            };
+            textParts.Add($"RUNTIME_{runtimeCategory}_{movieData.Runtime.Value}min");
         }
 
         if (movieData.Budget.HasValue && movieData.Budget.Value > 0)
         {
-            textParts.Add($"Budget: ${movieData.Budget.Value:N0}");
+            var budgetCategory = movieData.Budget.Value switch
+            {
+                < 1000000 => "LOW_BUDGET",
+                < 10000000 => "MEDIUM_BUDGET",
+                < 100000000 => "HIGH_BUDGET",
+                _ => "BLOCKBUSTER_BUDGET"
+            };
+            textParts.Add($"BUDGET_{budgetCategory}");
         }
 
-        return string.Join(" | ", textParts);
+        // Add movie uniqueness markers
+        textParts.Add($"UNIQUE_MOVIE_{movieData.Id.ToString().Substring(0, 8)}");
+
+        return string.Join(" ", textParts);
     }
 
     /// <summary>
@@ -690,7 +746,7 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
     }
 
     /// <summary>
-    /// Fallback embedding generation using simple text features
+    /// Fallback embedding generation using improved text features
     /// </summary>
     private float[] GenerateFallbackEmbedding(string text)
     {
@@ -710,12 +766,55 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         if (wordCount == 0)
             return embedding;
 
-        // Simple bag-of-words approach with hashing
-        foreach (var word in words)
+        // Improved approach: Use multiple hash functions and n-grams for better diversity
+        var uniqueWords = words.Distinct().ToArray();
+        var wordFrequencies = words.GroupBy(w => w).ToDictionary(g => g.Key, g => g.Count());
+        
+        // Generate n-grams (1-gram, 2-gram, 3-gram) for better context
+        var nGrams = GenerateNGrams(words, 3);
+        
+        // Use multiple hash functions to reduce collisions
+        var hashFunctions = new Func<string, int>[] 
         {
-            var hash = Math.Abs(word.GetHashCode());
-            var index = hash % embeddingDimension;
-            embedding[index] += 1.0f / wordCount;
+            s => Math.Abs(s.GetHashCode()),
+            s => Math.Abs(s.GetHashCode() * 31 + 17),
+            s => Math.Abs(s.GetHashCode() * 37 + 23),
+            s => Math.Abs(s.GetHashCode() * 41 + 29)
+        };
+
+        // Process individual words with multiple hash functions
+        foreach (var word in uniqueWords)
+        {
+            var frequency = wordFrequencies[word];
+            var weight = (float)frequency / wordCount;
+            
+            foreach (var hashFunc in hashFunctions)
+            {
+                var hash = hashFunc(word);
+                var index = hash % embeddingDimension;
+                embedding[index] += weight * 0.25f; // Distribute weight across hash functions
+            }
+        }
+
+        // Process n-grams for better context
+        foreach (var nGram in nGrams)
+        {
+            var nGramText = string.Join(" ", nGram);
+            var weight = 1.0f / (nGram.Length * wordCount); // Weight by n-gram length
+            
+            foreach (var hashFunc in hashFunctions)
+            {
+                var hash = hashFunc(nGramText);
+                var index = hash % embeddingDimension;
+                embedding[index] += weight * 0.1f; // Lower weight for n-grams
+            }
+        }
+
+        // Add some randomness to break ties and improve diversity
+        var random = new Random(text.GetHashCode()); // Deterministic but different per text
+        for (int i = 0; i < embedding.Length; i++)
+        {
+            embedding[i] += (float)(random.NextDouble() - 0.5) * 0.01f; // Small random noise
         }
 
         // Normalize
@@ -729,6 +828,26 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         }
 
         return embedding;
+    }
+
+    /// <summary>
+    /// Generates n-grams from a word array
+    /// </summary>
+    private List<string[]> GenerateNGrams(string[] words, int maxN)
+    {
+        var nGrams = new List<string[]>();
+        
+        for (int n = 1; n <= maxN; n++)
+        {
+            for (int i = 0; i <= words.Length - n; i++)
+            {
+                var nGram = new string[n];
+                Array.Copy(words, i, nGram, 0, n);
+                nGrams.Add(nGram);
+            }
+        }
+        
+        return nGrams;
     }
 
     /// <summary>
@@ -922,7 +1041,7 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
     }
 
     /// <summary>
-    /// Applies simple dimension reduction using random projection
+    /// Applies improved dimension reduction using weighted random projection
     /// </summary>
     private float[] ApplyDimensionReduction(float[] embedding, int targetDimensions)
     {
@@ -931,23 +1050,46 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
             return embedding;
         }
         
-        // Simple random projection for dimension reduction
+        // Improved random projection with better weight distribution
         var random = new Random(42); // Fixed seed for consistency
         var reduced = new float[targetDimensions];
+        
+        // Calculate the reduction ratio
+        var reductionRatio = (float)targetDimensions / embedding.Length;
         
         for (int i = 0; i < targetDimensions; i++)
         {
             float sum = 0;
+            var weightSum = 0f;
+            
             for (int j = 0; j < embedding.Length; j++)
             {
-                // Use random weights for projection
-                var weight = (float)(random.NextDouble() * 2 - 1); // Random value between -1 and 1
+                // Use different weight strategies for different dimensions
+                float weight;
+                if (i < targetDimensions / 2)
+                {
+                    // First half: use Gaussian-like weights
+                    weight = (float)(random.NextGaussian() * 0.5 + 0.5);
+                }
+                else
+                {
+                    // Second half: use uniform weights with some bias
+                    weight = (float)(random.NextDouble() * 2 - 1);
+                }
+                
+                // Apply weight based on original position importance
+                var positionWeight = 1.0f - (float)j / embedding.Length;
+                weight *= positionWeight;
+                
                 sum += embedding[j] * weight;
+                weightSum += Math.Abs(weight);
             }
-            reduced[i] = sum / embedding.Length; // Normalize by original dimension
+            
+            // Normalize by weight sum to maintain scale
+            reduced[i] = weightSum > 0 ? sum / weightSum : 0;
         }
         
-        _logger.LogDebug("Successfully reduced dimensions from {Source} to {Target}", embedding.Length, targetDimensions);
+        _logger.LogDebug("Successfully reduced dimensions from {Source} to {Target} using improved projection", embedding.Length, targetDimensions);
         return reduced;
     }
 
@@ -973,6 +1115,18 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         
         _logger.LogDebug("Padded embedding from {Source} to {Target} dimensions", embedding.Length, targetDimensions);
         return padded;
+    }
+
+    /// <summary>
+    /// Generates a Gaussian random number using Box-Muller transform
+    /// </summary>
+    private static double NextGaussian(this Random random, double mean = 0, double stdDev = 1)
+    {
+        // Box-Muller transform
+        double u1 = 1.0 - random.NextDouble(); // uniform(0,1] random doubles
+        double u2 = 1.0 - random.NextDouble();
+        double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2); // random normal(0,1)
+        return mean + stdDev * randStdNormal; // random normal(mean,stdDev^2)
     }
 
     public void Dispose()

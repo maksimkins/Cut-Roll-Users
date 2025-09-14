@@ -104,16 +104,24 @@ public class UserPreferenceService : IUserPreferenceService
             }
             _logger.LogInformation("Step 3: Embedding generated - {Dimension} dimensions", movieEmbedding.Count);
 
-            // Find similar movies using vector database
+            // Add some diversity by slightly perturbing the query vector
+            var diversifiedEmbedding = AddDiversityToEmbedding(movieEmbedding, movieId);
+
+            // Query vector database for similar movies with higher limit to allow for diversity filtering
             _logger.LogInformation("Step 4: Querying Pinecone for similar movies...");
-            var similarMovies = await _vectorDatabaseService.FindSimilarMoviesAsync(
-                movieEmbedding, 
-                limit + 1, // +1 to exclude the original movie
+            var rawRecommendations = await _vectorDatabaseService.FindSimilarMoviesAsync(
+                diversifiedEmbedding, 
+                limit * 2, // Get more results for diversity filtering
                 new List<Guid> { movieId } // Exclude the original movie
             );
 
-            _logger.LogInformation("Step 4: Found {Count} similar movies for movie {MovieId}", similarMovies.Count, movieId);
-            return similarMovies;
+            _logger.LogInformation("Step 4: Found {Count} raw similar movies for movie {MovieId}", rawRecommendations.Count, movieId);
+
+            // Apply diversity filtering to reduce similar recommendations
+            var diversifiedRecommendations = ApplyDiversityFiltering(rawRecommendations, limit);
+
+            _logger.LogInformation("Step 5: Applied diversity filtering, returning {Count} diverse recommendations", diversifiedRecommendations.Count);
+            return diversifiedRecommendations;
         }
         catch (Exception ex)
         {
@@ -985,6 +993,89 @@ public class UserPreferenceService : IUserPreferenceService
             reasons.Add("High compatibility with both users' movie preferences");
 
         return string.Join(". ", reasons) + ".";
+    }
+
+    /// <summary>
+    /// Adds diversity to embedding by slightly perturbing the vector
+    /// </summary>
+    private List<float> AddDiversityToEmbedding(List<float> embedding, Guid movieId)
+    {
+        var diversified = new List<float>(embedding);
+        var random = new Random(movieId.GetHashCode()); // Deterministic but different per movie
+        
+        // Add small random perturbations to break ties
+        for (int i = 0; i < diversified.Count; i++)
+        {
+            var perturbation = (float)(random.NextDouble() - 0.5) * 0.01f; // Small perturbation
+            diversified[i] += perturbation;
+        }
+        
+        // Normalize to maintain unit vector property
+        var norm = Math.Sqrt(diversified.Sum(x => x * x));
+        if (norm > 0)
+        {
+            for (int i = 0; i < diversified.Count; i++)
+            {
+                diversified[i] = (float)(diversified[i] / norm);
+            }
+        }
+        
+        return diversified;
+    }
+
+    /// <summary>
+    /// Applies diversity filtering to reduce similar recommendations
+    /// </summary>
+    private List<MovieRecommendationDto> ApplyDiversityFiltering(List<MovieRecommendationDto> recommendations, int targetLimit)
+    {
+        if (recommendations.Count <= targetLimit)
+        {
+            return recommendations;
+        }
+
+        var diversified = new List<MovieRecommendationDto>();
+        var usedTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        
+        // First pass: Add high-scoring unique recommendations
+        foreach (var rec in recommendations.OrderByDescending(r => r.SimilarityScore))
+        {
+            if (diversified.Count >= targetLimit)
+                break;
+                
+            // Check for title similarity (avoid very similar titles)
+            var titleWords = rec.Title.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var isTooSimilar = usedTitles.Any(usedTitle => 
+            {
+                var usedWords = usedTitle.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var commonWords = titleWords.Intersect(usedWords).Count();
+                return commonWords >= Math.Max(2, Math.Min(titleWords.Length, usedWords.Length) / 2);
+            });
+            
+            if (!isTooSimilar)
+            {
+                diversified.Add(rec);
+                usedTitles.Add(rec.Title);
+            }
+        }
+        
+        // Second pass: Fill remaining slots with diverse recommendations
+        if (diversified.Count < targetLimit)
+        {
+            var remaining = recommendations.Except(diversified).ToList();
+            var random = new Random(42); // Fixed seed for consistency
+            
+            while (diversified.Count < targetLimit && remaining.Any())
+            {
+                // Randomly select from remaining recommendations
+                var randomIndex = random.Next(remaining.Count);
+                var selected = remaining[randomIndex];
+                
+                diversified.Add(selected);
+                remaining.RemoveAt(randomIndex);
+            }
+        }
+        
+        return diversified.OrderByDescending(r => r.SimilarityScore).ToList();
     }
 
     #endregion
