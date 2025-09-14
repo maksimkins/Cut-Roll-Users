@@ -42,13 +42,22 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         _logger.LogInformation("VectorMovieDatabaseService initialized with official Pinecone SDK");
     }
 
-    public async Task<bool> UpsertMovieEmbeddingAsync(MovieEmbeddingDto embedding)
+    public async Task<bool> UpsertMovieEmbeddingAsync(MovieEmbeddingDto embedding, bool hasEmbedding = false)
     {
         if (_disposed) throw new ObjectDisposedException(nameof(VectorMovieDatabaseService));
 
         try
         {
             _logger.LogInformation("Attempting to upsert embedding for movie {MovieId}", embedding.MovieId);
+
+            if (hasEmbedding)
+            {
+                _logger.LogInformation("Embedding already exists for movie {MovieId}, updating...", embedding.MovieId);
+            }
+            else
+            {
+                _logger.LogInformation("Creating new embedding for movie {MovieId}", embedding.MovieId);
+            }
 
             var record = new UpsertRecord
             {
@@ -101,9 +110,51 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
 
             var recommendations = new List<MovieRecommendationDto>();
 
-            // TODO: Fix the response property access once we know the correct structure
-            // For now, return empty list to avoid compilation errors
-            _logger.LogWarning("SearchRecordsResponse structure is different than expected. Returning empty recommendations.");
+            // Parse the response structure: result.hits[]
+            if (response.Result?.Hits != null)
+            {
+                foreach (var hit in response.Result.Hits)
+                {
+                    try
+                    {
+                        if (string.IsNullOrEmpty(hit.Id) || !Guid.TryParse(hit.Id, out var movieId))
+                            continue;
+
+                        // Skip if movie ID is in exclusion list
+                        if (excludeMovieIds != null && excludeMovieIds.Contains(movieId))
+                            continue;
+
+                        string title = "Unknown Title";
+                        string? posterPath = null;
+
+                        if (hit.Fields != null)
+                        {
+                            if (hit.Fields.TryGetValue("title", out var titleValue))
+                                title = titleValue?.ToString() ?? "Unknown Title";
+                            if (hit.Fields.TryGetValue("posterPath", out var posterValue))
+                                posterPath = posterValue?.ToString();
+                        }
+
+                        var recommendation = new MovieRecommendationDto
+                        {
+                            MovieId = movieId,
+                            Title = title,
+                            SimilarityScore = hit.Score,
+                            PosterPath = posterPath
+                        };
+
+                        recommendations.Add(recommendation);
+
+                        // Stop if we have enough recommendations
+                        if (recommendations.Count >= limit)
+                            break;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error processing hit");
+                    }
+                }
+            }
 
             _logger.LogInformation("Found {Count} similar movies", recommendations.Count);
             return recommendations;
@@ -115,13 +166,20 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         }
     }
 
-    public async Task<bool> DeleteMovieEmbeddingAsync(Guid movieId)
+    public async Task<bool> DeleteMovieEmbeddingAsync(Guid movieId, bool hasEmbedding = true)
     {
         if (_disposed) throw new ObjectDisposedException(nameof(VectorMovieDatabaseService));
 
         try
         {
             _logger.LogInformation("Deleting embedding for movie {MovieId}", movieId);
+
+            // Check if embedding exists before attempting to delete
+            if (!hasEmbedding)
+            {
+                _logger.LogWarning("Embedding does not exist for movie {MovieId}, nothing to delete", movieId);
+                return true; // Return true since the desired state (no embedding) is already achieved
+            }
 
             await _index.DeleteAsync(
                 new DeleteRequest
