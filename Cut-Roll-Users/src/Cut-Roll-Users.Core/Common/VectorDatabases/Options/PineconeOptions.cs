@@ -1,5 +1,5 @@
-
 namespace Cut_Roll_Users.Core.Common.VectorDatabases.Options;
+
 public class PineconeOptions
 {
     public string ApiKey { get; set; } = string.Empty;

@@ -97,35 +97,37 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         {
             _logger.LogInformation("Finding similar movies with limit {Limit}, excluding {ExcludeCount} movies", 
                 limit, excludeMovieIds?.Count ?? 0);
+            
+            _logger.LogInformation("Query vector dimensions: {Dimensions}, First 5 values: [{Values}]", 
+                queryVector.Count, string.Join(", ", queryVector.Take(5)));
 
-            var response = await _index.SearchRecordsAsync(
-                _options.Namespace ?? "default", // namespace
-                new SearchRecordsRequest
-                {
-                    Query = new SearchRecordsRequestQuery
-                    {
-                        TopK = excludeMovieIds != null ? limit + excludeMovieIds.Count : limit,
-                        Vector = new SearchRecordsVector { Values = queryVector.ToArray() }
-                    },
-                    Fields = _options.SearchFields ?? ["title", "posterPath", "movieId"]
-                }
-            );
+            var queryRequest = new QueryRequest
+            {
+                Vector = queryVector.ToArray(),
+                TopK = (uint)(excludeMovieIds != null ? limit + excludeMovieIds.Count : limit),
+                IncludeMetadata = true,
+                Namespace = _options.Namespace ?? "default"
+            };
+            
+            _logger.LogInformation("Query request - Namespace: {Namespace}, TopK: {TopK}, Vector dimensions: {Dimensions}", 
+                queryRequest.Namespace, queryRequest.TopK, queryVector.Count);
+
+            var response = await _index.QueryAsync(queryRequest);
 
             var recommendations = new List<MovieRecommendationDto>();
 
             // Debug logging to see what we're getting
-            _logger.LogInformation("Search response received. Result: {Result}, Hits count: {HitsCount}", 
-                response.Result != null ? "Present" : "Null", 
-                response.Result?.Hits?.Count() ?? 0);
+            _logger.LogInformation("Query response received. Matches count: {MatchesCount}", 
+                response.Matches?.Count() ?? 0);
 
-            // Parse the response structure: result.hits[]
-            if (response.Result?.Hits != null)
+            // Parse the response structure: matches[]
+            if (response.Matches != null)
             {
-                foreach (var hit in response.Result.Hits)
+                foreach (var match in response.Matches)
                 {
                     try
                     {
-                        if (string.IsNullOrEmpty(hit.Id) || !Guid.TryParse(hit.Id, out var movieId))
+                        if (string.IsNullOrEmpty(match.Id) || !Guid.TryParse(match.Id, out var movieId))
                             continue;
 
                         // Skip if movie ID is in exclusion list
@@ -135,11 +137,11 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
                         string title = "Unknown Title";
                         string? posterPath = null;
 
-                        if (hit.Fields != null)
+                        if (match.Metadata != null)
                         {
-                            if (hit.Fields.TryGetValue("title", out var titleValue))
+                            if (match.Metadata.TryGetValue("title", out var titleValue))
                                 title = titleValue?.ToString() ?? "Unknown Title";
-                            if (hit.Fields.TryGetValue("posterPath", out var posterValue))
+                            if (match.Metadata.TryGetValue("posterPath", out var posterValue))
                                 posterPath = posterValue?.ToString();
                         }
 
@@ -147,7 +149,7 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
                         {
                             MovieId = movieId,
                             Title = title,
-                            SimilarityScore = hit.Score,
+                            SimilarityScore = (double)(match.Score ?? 0f),
                             PosterPath = posterPath
                         };
 
@@ -159,7 +161,7 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Error processing hit");
+                        _logger.LogWarning(ex, "Error processing match {MatchId}", match.Id);
                     }
                 }
             }
