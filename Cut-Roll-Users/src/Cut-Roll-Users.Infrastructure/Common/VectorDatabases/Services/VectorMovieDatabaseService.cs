@@ -59,21 +59,22 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
                 _logger.LogInformation("Creating new embedding for movie {MovieId}", embedding.MovieId);
             }
 
-            var vector = new Vector
-            {
-                Id = embedding.MovieId.ToString(),
-                Values = embedding.Embedding.ToArray(),
-                Metadata = new Metadata
-                {
-                    ["movieId"] = embedding.MovieId.ToString(),
-                    ["title"] = embedding.Title,
-                    ["posterPath"] = embedding.PosterPath ?? string.Empty
-                }
-            };
-
             var upsertRequest = new UpsertRequest
             {
-                Vectors = new List<Vector> { vector },
+                Vectors = new List<Vector>
+                {
+                    new Vector
+                    {
+                        Id = embedding.MovieId.ToString(),
+                        Values = embedding.Embedding.ToArray(),
+                        Metadata = new Metadata
+                        {
+                            ["movieId"] = embedding.MovieId.ToString(),
+                            ["title"] = embedding.Title,
+                            ["posterPath"] = embedding.PosterPath ?? string.Empty
+                        }
+                    }
+                },
                 Namespace = _options.Namespace ?? "default"
             };
 
@@ -101,29 +102,24 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             _logger.LogInformation("Query vector dimensions: {Dimensions}, First 5 values: [{Values}]", 
                 queryVector.Count, string.Join(", ", queryVector.Take(5)));
 
-            var queryRequest = new QueryRequest
+            var queryResponse = await _index.QueryAsync(new QueryRequest
             {
                 Vector = queryVector.ToArray(),
+                Namespace = _options.Namespace ?? "default",
                 TopK = (uint)(excludeMovieIds != null ? limit + excludeMovieIds.Count : limit),
-                IncludeMetadata = true,
-                Namespace = _options.Namespace ?? "default"
-            };
-            
-            _logger.LogInformation("Query request - Namespace: {Namespace}, TopK: {TopK}, Vector dimensions: {Dimensions}", 
-                queryRequest.Namespace, queryRequest.TopK, queryVector.Count);
-
-            var response = await _index.QueryAsync(queryRequest);
+                IncludeMetadata = true
+            });
 
             var recommendations = new List<MovieRecommendationDto>();
 
             // Debug logging to see what we're getting
             _logger.LogInformation("Query response received. Matches count: {MatchesCount}", 
-                response.Matches?.Count() ?? 0);
+                queryResponse.Matches?.Count() ?? 0);
 
             // Parse the response structure: matches[]
-            if (response.Matches != null)
+            if (queryResponse.Matches != null)
             {
-                foreach (var match in response.Matches)
+                foreach (var match in queryResponse.Matches)
                 {
                     try
                     {
@@ -176,6 +172,39 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         }
     }
 
+    public async Task<bool> UpdateMovieEmbeddingAsync(MovieEmbeddingDto embedding)
+    {
+        if (_disposed) throw new ObjectDisposedException(nameof(VectorMovieDatabaseService));
+
+        try
+        {
+            _logger.LogInformation("Updating embedding for movie {MovieId}", embedding.MovieId);
+
+            var updateRequest = new UpdateRequest
+            {
+                Id = embedding.MovieId.ToString(),
+                Values = embedding.Embedding.ToArray(),
+                SetMetadata = new Metadata
+                {
+                    ["movieId"] = embedding.MovieId.ToString(),
+                    ["title"] = embedding.Title,
+                    ["posterPath"] = embedding.PosterPath ?? string.Empty
+                },
+                Namespace = _options.Namespace ?? "default"
+            };
+
+            await _index.UpdateAsync(updateRequest);
+
+            _logger.LogInformation("Successfully updated embedding for movie {MovieId}", embedding.MovieId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update embedding for movie {MovieId}", embedding.MovieId);
+            return false;
+        }
+    }
+
     public async Task<bool> DeleteMovieEmbeddingAsync(Guid movieId, bool hasEmbedding = true)
     {
         if (_disposed) throw new ObjectDisposedException(nameof(VectorMovieDatabaseService));
@@ -191,12 +220,11 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
                 return true; // Return true since the desired state (no embedding) is already achieved
             }
 
-            await _index.DeleteAsync(
-                new DeleteRequest
-                {
-                    Ids = new[] { movieId.ToString() }
-                }
-            );
+            await _index.DeleteAsync(new DeleteRequest
+            {
+                Ids = new[] { movieId.ToString() },
+                Namespace = _options.Namespace ?? "default"
+            });
 
             _logger.LogInformation("Successfully deleted embedding for movie {MovieId}", movieId);
             return true;
@@ -218,17 +246,13 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
 
             // Test with a simple query to check if the index is accessible
             var testVector = new float[_options.VectorDimensions]; // Dummy vector
-            var response = await _index.SearchRecordsAsync(
-                _options.Namespace ?? "default",
-                new SearchRecordsRequest
-                {
-                    Query = new SearchRecordsRequestQuery
-                    {
-                        TopK = 1,
-                        Vector = new SearchRecordsVector { Values = testVector }
-                    }
-                }
-            );
+            var response = await _index.QueryAsync(new QueryRequest
+            {
+                Vector = testVector,
+                Namespace = _options.Namespace ?? "default",
+                TopK = 1,
+                IncludeMetadata = false
+            });
             
             _logger.LogInformation("Vector database initialized and accessible");
             return true;
@@ -288,17 +312,13 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
                 testVector[i] = _options.TestVectorValue; // Configurable test values
             }
 
-            var response = await _index.SearchRecordsAsync(
-                _options.Namespace ?? "default",
-                new SearchRecordsRequest
-                {
-                    Query = new SearchRecordsRequestQuery
-                    {
-                        TopK = 1,
-                        Vector = new SearchRecordsVector { Values = testVector }
-                    }
-                }
-            );
+            var response = await _index.QueryAsync(new QueryRequest
+            {
+                Vector = testVector,
+                Namespace = _options.Namespace ?? "default",
+                TopK = 1,
+                IncludeMetadata = false
+            });
             
             _logger.LogInformation("Vector database health check passed");
             return true;
