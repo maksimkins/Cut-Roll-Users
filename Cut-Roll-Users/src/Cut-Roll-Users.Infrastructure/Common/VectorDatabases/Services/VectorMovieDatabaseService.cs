@@ -59,22 +59,25 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
                 _logger.LogInformation("Creating new embedding for movie {MovieId}", embedding.MovieId);
             }
 
-            var record = new UpsertRecord
+            var vector = new Vector
             {
                 Id = embedding.MovieId.ToString(),
-                AdditionalProperties = new AdditionalProperties
+                Values = embedding.Embedding.ToArray(),
+                Metadata = new Metadata
                 {
                     ["movieId"] = embedding.MovieId.ToString(),
                     ["title"] = embedding.Title,
-                    ["posterPath"] = embedding.PosterPath ?? string.Empty,
-                    [_options.VectorFieldName ?? "vector"] = embedding.Embedding.ToArray()
+                    ["posterPath"] = embedding.PosterPath ?? string.Empty
                 }
             };
 
-            await _index.UpsertRecordsAsync(
-                _options.Namespace ?? "default", // namespace
-                new[] { record }
-            );
+            var upsertRequest = new UpsertRequest
+            {
+                Vectors = new List<Vector> { vector },
+                Namespace = _options.Namespace ?? "default"
+            };
+
+            await _index.UpsertAsync(upsertRequest);
 
             _logger.LogInformation("Successfully upserted embedding for movie {MovieId}", embedding.MovieId);
             return true;
@@ -109,6 +112,11 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
             );
 
             var recommendations = new List<MovieRecommendationDto>();
+
+            // Debug logging to see what we're getting
+            _logger.LogInformation("Search response received. Result: {Result}, Hits count: {HitsCount}", 
+                response.Result != null ? "Present" : "Null", 
+                response.Result?.Hits?.Count() ?? 0);
 
             // Parse the response structure: result.hits[]
             if (response.Result?.Hits != null)

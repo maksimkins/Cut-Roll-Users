@@ -625,18 +625,36 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         using var results = _inferenceSession.Run(inputs);
         
         // Debug: Log available outputs
-        _logger.LogDebug("ONNX model outputs: {Count}", results.Count());
+        _logger.LogInformation("ONNX model outputs: {Count}", results.Count());
         foreach (var result in results)
         {
             var dimensions = result.AsTensor<float>().Dimensions.ToArray();
-            _logger.LogDebug("Output name: {Name}, Shape: {Shape}", result.Name, string.Join("x", dimensions));
+            _logger.LogInformation("Output name: {Name}, Shape: {Shape}", result.Name, string.Join("x", dimensions));
         }
         
-        // Try to find the correct output (usually named 'last_hidden_state' or similar)
+        // Try to find the correct output - prioritize sentence-level embeddings over token-level
         var embeddingOutput = results.FirstOrDefault(r => 
-            r.Name.Contains("last_hidden_state") || 
             r.Name.Contains("pooler_output") || 
-            r.Name.Contains("embeddings")) ?? results.Last();
+            r.Name.Contains("sentence_embedding") ||
+            r.Name.Contains("embeddings") ||
+            r.Name.Contains("output")) ?? 
+            results.FirstOrDefault(r => r.Name.Contains("last_hidden_state"));
+            
+        // If we still don't have a good output, log all available outputs and use the first one
+        if (embeddingOutput == null)
+        {
+            _logger.LogWarning("No suitable output found. Available outputs:");
+            foreach (var result in results)
+            {
+                var dimensions = result.AsTensor<float>().Dimensions.ToArray();
+                _logger.LogWarning("  - {Name}: {Shape}", result.Name, string.Join("x", dimensions));
+            }
+            embeddingOutput = results.First();
+        }
+        
+        // Log which output was selected
+        var selectedDimensions = embeddingOutput.AsTensor<float>().Dimensions.ToArray();
+        _logger.LogInformation("Selected output: {Name}, Shape: {Shape}", embeddingOutput.Name, string.Join("x", selectedDimensions));
             
         var output = embeddingOutput.AsEnumerable<float>().ToArray();
         
@@ -644,9 +662,20 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         var expectedDimension = _pineconeOptions.VectorDimensions;
         if (output.Length != expectedDimension)
         {
-            _logger.LogWarning("ONNX model output dimension {Actual} does not match expected dimension {Expected}. Using fallback.", 
+            _logger.LogWarning("ONNX model output dimension {Actual} does not match expected dimension {Expected}. Applying dimension reduction.", 
                 output.Length, expectedDimension);
-            return GenerateFallbackEmbedding(text);
+            
+            // Apply dimension reduction if needed
+            if (output.Length > expectedDimension)
+            {
+                output = ReduceEmbeddingDimensions(output, expectedDimension);
+            }
+            else
+            {
+                _logger.LogWarning("Cannot reduce dimensions from {Actual} to {Expected}. Using fallback.", 
+                    output.Length, expectedDimension);
+                return GenerateFallbackEmbedding(text);
+            }
         }
 
         // Normalize the embedding
@@ -824,6 +853,126 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
             counter++;
         }
         return $"{number:n1} {suffixes[counter]}";
+    }
+
+    /// <summary>
+    /// Reduces embedding dimensions using mean pooling and PCA-like reduction
+    /// </summary>
+    private float[] ReduceEmbeddingDimensions(float[] embedding, int targetDimensions)
+    {
+        try
+        {
+            _logger.LogDebug("Reducing embedding dimensions from {Source} to {Target}", embedding.Length, targetDimensions);
+            
+            // For large embeddings, try to identify if it's a sequence of embeddings
+            // Common sequence lengths: 512, 256, 128, 64, 32, 16, 8
+            var possibleSequenceLengths = new[] { 512, 256, 128, 64, 32, 16, 8 };
+            
+            foreach (var seqLen in possibleSequenceLengths)
+            {
+                if (embedding.Length % seqLen == 0)
+                {
+                    var hiddenSize = embedding.Length / seqLen;
+                    _logger.LogDebug("Detected potential sequence structure: seq_len={SeqLen}, hidden_size={HiddenSize}", seqLen, hiddenSize);
+                    
+                    // Apply mean pooling over the sequence dimension
+                    var pooledEmbedding = new float[hiddenSize];
+                    for (int i = 0; i < hiddenSize; i++)
+                    {
+                        float sum = 0;
+                        for (int j = 0; j < seqLen; j++)
+                        {
+                            sum += embedding[j * hiddenSize + i];
+                        }
+                        pooledEmbedding[i] = sum / seqLen;
+                    }
+                    
+                    // If the pooled embedding is already the target size, return it
+                    if (hiddenSize == targetDimensions)
+                    {
+                        _logger.LogDebug("Mean pooling resulted in target dimension {Target}", targetDimensions);
+                        return pooledEmbedding;
+                    }
+                    
+                    // If pooled embedding is still too large, apply further reduction
+                    if (hiddenSize > targetDimensions)
+                    {
+                        _logger.LogDebug("Applying further reduction from {HiddenSize} to {Target}", hiddenSize, targetDimensions);
+                        return ApplyDimensionReduction(pooledEmbedding, targetDimensions);
+                    }
+                    
+                    // If pooled embedding is smaller than target, pad it
+                    if (hiddenSize < targetDimensions)
+                    {
+                        _logger.LogDebug("Padding embedding from {HiddenSize} to {Target}", hiddenSize, targetDimensions);
+                        return PadEmbedding(pooledEmbedding, targetDimensions);
+                    }
+                }
+            }
+            
+            // If no sequence structure detected, apply direct dimension reduction
+            _logger.LogDebug("No sequence structure detected, applying direct dimension reduction");
+            return ApplyDimensionReduction(embedding, targetDimensions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during dimension reduction, using fallback");
+            return GenerateFallbackEmbedding("dimension_reduction_fallback");
+        }
+    }
+
+    /// <summary>
+    /// Applies simple dimension reduction using random projection
+    /// </summary>
+    private float[] ApplyDimensionReduction(float[] embedding, int targetDimensions)
+    {
+        if (embedding.Length <= targetDimensions)
+        {
+            return embedding;
+        }
+        
+        // Simple random projection for dimension reduction
+        var random = new Random(42); // Fixed seed for consistency
+        var reduced = new float[targetDimensions];
+        
+        for (int i = 0; i < targetDimensions; i++)
+        {
+            float sum = 0;
+            for (int j = 0; j < embedding.Length; j++)
+            {
+                // Use random weights for projection
+                var weight = (float)(random.NextDouble() * 2 - 1); // Random value between -1 and 1
+                sum += embedding[j] * weight;
+            }
+            reduced[i] = sum / embedding.Length; // Normalize by original dimension
+        }
+        
+        _logger.LogDebug("Successfully reduced dimensions from {Source} to {Target}", embedding.Length, targetDimensions);
+        return reduced;
+    }
+
+    /// <summary>
+    /// Pads embedding to target dimensions by repeating values
+    /// </summary>
+    private float[] PadEmbedding(float[] embedding, int targetDimensions)
+    {
+        if (embedding.Length >= targetDimensions)
+        {
+            return embedding;
+        }
+        
+        var padded = new float[targetDimensions];
+        var repeatCount = targetDimensions / embedding.Length;
+        var remainder = targetDimensions % embedding.Length;
+        
+        for (int i = 0; i < targetDimensions; i++)
+        {
+            var sourceIndex = i % embedding.Length;
+            padded[i] = embedding[sourceIndex];
+        }
+        
+        _logger.LogDebug("Padded embedding from {Source} to {Target} dimensions", embedding.Length, targetDimensions);
+        return padded;
     }
 
     public void Dispose()
