@@ -1069,7 +1069,7 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
                 if (i < targetDimensions / 2)
                 {
                     // First half: use Gaussian-like weights
-                    weight = (float)(random.NextGaussian() * 0.5 + 0.5);
+                    weight = (float)(NextGaussian(random) * 0.5 + 0.5);
                 }
                 else
                 {
@@ -1120,7 +1120,7 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
     /// <summary>
     /// Generates a Gaussian random number using Box-Muller transform
     /// </summary>
-    private static double NextGaussian(this Random random, double mean = 0, double stdDev = 1)
+    private static double NextGaussian(Random random, double mean = 0, double stdDev = 1)
     {
         // Box-Muller transform
         double u1 = 1.0 - random.NextDouble(); // uniform(0,1] random doubles
