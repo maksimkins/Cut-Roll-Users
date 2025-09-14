@@ -140,7 +140,6 @@ public class FollowEfCoreRepository : IFollowRepository
 
     public async Task<PagedResult<FeedActivityDto>> GetUserFeedAsync(FeedPaginationDto dto)
     {
-        
         var followingUserIds = await _context.Follows
             .Where(f => f.FollowerId == dto.UserId)
             .Select(f => f.FollowingId)
