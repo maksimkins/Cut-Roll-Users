@@ -123,7 +123,11 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
                 Vector = queryVector.ToArray(),
                 Namespace = _options.Namespace ?? "__default__",
                 TopK = (uint)(excludeMovieIds != null ? limit + excludeMovieIds.Count : limit),
-                IncludeMetadata = true
+                IncludeMetadata = true,
+                // Add similarity threshold to filter out very dissimilar results
+                Filter = null, // Could add metadata filters here if needed
+                // Note: Pinecone similarity metric is configured at index creation time
+                // Common metrics: cosine (default), dotproduct, euclidean
             });
 
             var recommendations = new List<MovieRecommendationDto>();
@@ -157,15 +161,32 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
                                 posterPath = posterValue?.ToString();
                         }
 
-                        var recommendation = new MovieRecommendationDto
+                        var similarityScore = (double)(match.Score ?? 0f);
+                        
+                        // Filter out recommendations with very low similarity scores
+                        // Adjust this threshold based on your similarity metric:
+                        // - For cosine similarity: 0.0 to 1.0 (higher is better)
+                        // - For dot product: can be negative (higher is better)
+                        // - For euclidean: 0.0 to infinity (lower is better)
+                        var minSimilarityThreshold = 0.3; // Adjust this value based on your needs
+                        
+                        if (similarityScore >= minSimilarityThreshold)
                         {
-                            MovieId = movieId,
-                            Title = title,
-                            SimilarityScore = (double)(match.Score ?? 0f),
-                            PosterPath = posterPath
-                        };
+                            var recommendation = new MovieRecommendationDto
+                            {
+                                MovieId = movieId,
+                                Title = title,
+                                SimilarityScore = similarityScore,
+                                PosterPath = posterPath
+                            };
 
-                        recommendations.Add(recommendation);
+                            recommendations.Add(recommendation);
+                            _logger.LogDebug("Added recommendation: {Title} with similarity score {Score}", title, similarityScore);
+                        }
+                        else
+                        {
+                            _logger.LogDebug("Filtered out recommendation: {Title} with low similarity score {Score}", title, similarityScore);
+                        }
 
                         // Stop if we have enough recommendations
                         if (recommendations.Count >= limit)

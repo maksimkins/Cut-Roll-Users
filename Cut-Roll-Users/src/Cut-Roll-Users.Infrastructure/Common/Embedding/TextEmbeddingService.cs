@@ -746,11 +746,11 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
     }
 
     /// <summary>
-    /// Fallback embedding generation using improved text features
+    /// Enhanced fallback embedding generation using improved text features and semantic understanding
     /// </summary>
     private float[] GenerateFallbackEmbedding(string text)
     {
-        _logger.LogInformation("Using fallback embedding generation for text: {Text}", text.Substring(0, Math.Min(100, text.Length)));
+        _logger.LogInformation("Using enhanced fallback embedding generation for text: {Text}", text.Substring(0, Math.Min(100, text.Length)));
         
         var words = text.ToLowerInvariant()
             .Split(' ', StringSplitOptions.RemoveEmptyEntries)
@@ -761,73 +761,162 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         var embedding = new float[embeddingDimension];
         var wordCount = words.Length;
         
-        _logger.LogDebug("Fallback embedding: {WordCount} words, dimension: {Dimension}", wordCount, embeddingDimension);
+        _logger.LogDebug("Enhanced fallback embedding: {WordCount} words, dimension: {Dimension}", wordCount, embeddingDimension);
 
         if (wordCount == 0)
             return embedding;
 
-        // Improved approach: Use multiple hash functions and n-grams for better diversity
+        // Enhanced approach: Use semantic word categories and better weighting
         var uniqueWords = words.Distinct().ToArray();
         var wordFrequencies = words.GroupBy(w => w).ToDictionary(g => g.Key, g => g.Count());
         
-        // Generate n-grams (1-gram, 2-gram, 3-gram) for better context
-        var nGrams = GenerateNGrams(words, 3);
+        // Generate n-grams (1-gram, 2-gram, 3-gram, 4-gram) for better context
+        var nGrams = GenerateNGrams(words, 4);
         
-        // Use multiple hash functions to reduce collisions
+        // Enhanced hash functions with better distribution
         var hashFunctions = new Func<string, int>[] 
         {
             s => Math.Abs(s.GetHashCode()),
             s => Math.Abs(s.GetHashCode() * 31 + 17),
             s => Math.Abs(s.GetHashCode() * 37 + 23),
-            s => Math.Abs(s.GetHashCode() * 41 + 29)
+            s => Math.Abs(s.GetHashCode() * 41 + 29),
+            s => Math.Abs(s.GetHashCode() * 43 + 31), // Additional hash function
+            s => Math.Abs(s.GetHashCode() * 47 + 37)  // Additional hash function
         };
 
-        // Process individual words with multiple hash functions
+        // Categorize words by importance and type
+        var importantWords = CategorizeWordsByImportance(uniqueWords);
+        
+        // Process words with category-based weighting
         foreach (var word in uniqueWords)
         {
             var frequency = wordFrequencies[word];
-            var weight = (float)frequency / wordCount;
+            var baseWeight = (float)frequency / wordCount;
+            
+            // Apply category-based weight multipliers
+            var categoryWeight = importantWords.TryGetValue(word, out var category) 
+                ? GetCategoryWeightMultiplier(category) 
+                : 1.0f;
+            
+            var finalWeight = baseWeight * categoryWeight;
             
             foreach (var hashFunc in hashFunctions)
             {
                 var hash = hashFunc(word);
                 var index = hash % embeddingDimension;
-                embedding[index] += weight * 0.25f; // Distribute weight across hash functions
+                embedding[index] += finalWeight * (1.0f / hashFunctions.Length);
             }
         }
 
-        // Process n-grams for better context
+        // Process n-grams with enhanced weighting
         foreach (var nGram in nGrams)
         {
             var nGramText = string.Join(" ", nGram);
-            var weight = 1.0f / (nGram.Length * wordCount); // Weight by n-gram length
+            var baseWeight = 1.0f / (nGram.Length * wordCount);
+            
+            // Higher weight for longer n-grams (more context)
+            var nGramWeight = baseWeight * (1.0f + (nGram.Length - 1) * 0.2f);
             
             foreach (var hashFunc in hashFunctions)
             {
                 var hash = hashFunc(nGramText);
                 var index = hash % embeddingDimension;
-                embedding[index] += weight * 0.1f; // Lower weight for n-grams
+                embedding[index] += nGramWeight * 0.15f; // Increased weight for n-grams
             }
         }
 
-        // Add some randomness to break ties and improve diversity
-        var random = new Random(text.GetHashCode()); // Deterministic but different per text
+        // Add semantic diversity through controlled randomness
+        var random = new Random(text.GetHashCode());
         for (int i = 0; i < embedding.Length; i++)
         {
-            embedding[i] += (float)(random.NextDouble() - 0.5) * 0.01f; // Small random noise
+            // Use different noise patterns for different vector regions
+            var noisePattern = (i % 4) switch
+            {
+                0 => (float)(random.NextDouble() - 0.5) * 0.02f, // Slightly higher noise
+                1 => (float)(random.NextDouble() - 0.5) * 0.015f,
+                2 => (float)(random.NextDouble() - 0.5) * 0.01f,
+                _ => (float)(random.NextDouble() - 0.5) * 0.005f
+            };
+            embedding[i] += noisePattern;
         }
 
-        // Normalize
+        // Enhanced normalization with L2 regularization
         var norm = Math.Sqrt(embedding.Sum(x => x * x));
         if (norm > 0)
         {
+            // Apply L2 regularization to prevent overfitting
+            var regularizationFactor = 0.01f;
+            var regularizedNorm = Math.Sqrt(norm * norm + regularizationFactor);
+            
             for (int i = 0; i < embedding.Length; i++)
             {
-                embedding[i] = (float)(embedding[i] / norm);
+                embedding[i] = (float)(embedding[i] / regularizedNorm);
             }
         }
 
         return embedding;
+    }
+
+    /// <summary>
+    /// Categorizes words by their semantic importance for movie recommendations
+    /// </summary>
+    private Dictionary<string, WordCategory> CategorizeWordsByImportance(string[] words)
+    {
+        var categories = new Dictionary<string, WordCategory>();
+        
+        // Define important word patterns
+        var genreKeywords = new[] { "action", "comedy", "drama", "horror", "thriller", "romance", "sci-fi", "fantasy", "documentary", "animation" };
+        var qualityKeywords = new[] { "award", "oscar", "nominated", "critically", "acclaimed", "masterpiece", "classic", "cult" };
+        var technicalKeywords = new[] { "director", "producer", "cinematography", "score", "soundtrack", "visual", "effects" };
+        var thematicKeywords = new[] { "love", "war", "family", "friendship", "adventure", "mystery", "crime", "justice", "freedom" };
+        
+        foreach (var word in words)
+        {
+            if (genreKeywords.Any(k => word.Contains(k)))
+                categories[word] = WordCategory.Genre;
+            else if (qualityKeywords.Any(k => word.Contains(k)))
+                categories[word] = WordCategory.Quality;
+            else if (technicalKeywords.Any(k => word.Contains(k)))
+                categories[word] = WordCategory.Technical;
+            else if (thematicKeywords.Any(k => word.Contains(k)))
+                categories[word] = WordCategory.Thematic;
+            else if (word.StartsWith("genre_") || word.StartsWith("keyword_") || word.StartsWith("actor_") || word.StartsWith("crew_"))
+                categories[word] = WordCategory.Metadata;
+            else
+                categories[word] = WordCategory.General;
+        }
+        
+        return categories;
+    }
+
+    /// <summary>
+    /// Gets weight multiplier based on word category
+    /// </summary>
+    private float GetCategoryWeightMultiplier(WordCategory category)
+    {
+        return category switch
+        {
+            WordCategory.Genre => 2.0f,      // Genres are very important
+            WordCategory.Quality => 1.8f,    // Quality indicators are important
+            WordCategory.Metadata => 1.5f,   // Structured metadata is important
+            WordCategory.Technical => 1.3f,  // Technical aspects matter
+            WordCategory.Thematic => 1.2f,   // Themes are somewhat important
+            WordCategory.General => 1.0f,    // General words get base weight
+            _ => 1.0f
+        };
+    }
+
+    /// <summary>
+    /// Word categories for semantic understanding
+    /// </summary>
+    private enum WordCategory
+    {
+        Genre,
+        Quality,
+        Metadata,
+        Technical,
+        Thematic,
+        General
     }
 
     /// <summary>
