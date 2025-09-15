@@ -691,28 +691,10 @@ public class UserPreferenceService : IUserPreferenceService
         var weightedSum = new float[dimension];
         var totalWeight = weights.Sum();
 
-        // Enhanced weighting with diversity preservation
-        var normalizedWeights = weights.Select(w => w / totalWeight).ToList();
-        
-        // Apply non-linear weighting to emphasize diverse preferences
-        var enhancedWeights = normalizedWeights.Select(w => 
-        {
-            // Use square root to reduce dominance of very high weights
-            var normalized = w / normalizedWeights.Max();
-            return (float)Math.Pow(normalized, 0.7); // 0.7 power reduces extreme values
-        }).ToList();
-
-        // Re-normalize enhanced weights
-        var enhancedTotalWeight = enhancedWeights.Sum();
-        if (enhancedTotalWeight > 0)
-        {
-            enhancedWeights = enhancedWeights.Select(w => w / enhancedTotalWeight).ToList();
-        }
-
         for (int i = 0; i < embeddings.Count; i++)
         {
             var embedding = embeddings[i];
-            var weight = enhancedWeights[i];
+            var weight = weights[i];
 
             for (int j = 0; j < dimension; j++)
             {
@@ -720,44 +702,13 @@ public class UserPreferenceService : IUserPreferenceService
             }
         }
 
-        // Add diversity enhancement through controlled perturbation
-        var diversifiedEmbedding = AddDiversityToUserTasteVector(weightedSum.ToList());
-
-        return diversifiedEmbedding;
-    }
-
-    /// <summary>
-    /// Adds controlled diversity to user taste vectors to prevent over-concentration
-    /// </summary>
-    private List<float> AddDiversityToUserTasteVector(List<float> tasteVector)
-    {
-        var diversified = new List<float>(tasteVector);
-        var random = new Random(42); // Fixed seed for consistency
-        
-        // Add small perturbations to different regions of the vector
-        for (int i = 0; i < diversified.Count; i++)
+        // Normalize by total weight
+        for (int j = 0; j < dimension; j++)
         {
-            // Use different perturbation strategies for different vector regions
-            var perturbation = (i % 3) switch
-            {
-                0 => (float)(random.NextDouble() - 0.5) * 0.01f, // Small perturbation
-                1 => (float)(random.NextDouble() - 0.5) * 0.005f, // Even smaller
-                _ => (float)(random.NextDouble() - 0.5) * 0.002f  // Minimal perturbation
-            };
-            diversified[i] += perturbation;
+            weightedSum[j] /= totalWeight;
         }
-        
-        // Normalize to maintain unit vector property
-        var norm = Math.Sqrt(diversified.Sum(x => x * x));
-        if (norm > 0)
-        {
-            for (int i = 0; i < diversified.Count; i++)
-            {
-                diversified[i] = (float)(diversified[i] / norm);
-            }
-        }
-        
-        return diversified;
+
+        return weightedSum.ToList();
     }
 
     private List<string> AnalyzePreferredGenres(List<Movie> movies)
@@ -1073,7 +1024,7 @@ public class UserPreferenceService : IUserPreferenceService
     }
 
     /// <summary>
-    /// Enhanced diversity filtering to reduce similar recommendations using multiple criteria
+    /// Applies diversity filtering to reduce similar recommendations
     /// </summary>
     private List<MovieRecommendationDto> ApplyDiversityFiltering(List<MovieRecommendationDto> recommendations, int targetLimit)
     {
@@ -1084,232 +1035,47 @@ public class UserPreferenceService : IUserPreferenceService
 
         var diversified = new List<MovieRecommendationDto>();
         var usedTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var usedGenres = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var usedDecades = new HashSet<string>();
-        var usedStudios = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         
-        // First pass: Add high-scoring diverse recommendations
+        // First pass: Add high-scoring unique recommendations
         foreach (var rec in recommendations.OrderByDescending(r => r.SimilarityScore))
         {
             if (diversified.Count >= targetLimit)
                 break;
                 
-            // Enhanced similarity check using multiple criteria
-            if (IsRecommendationDiverse(rec, usedTitles, usedGenres, usedDecades, usedStudios))
+            // Check for title similarity (avoid very similar titles)
+            var titleWords = rec.Title.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var isTooSimilar = usedTitles.Any(usedTitle => 
+            {
+                var usedWords = usedTitle.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var commonWords = titleWords.Intersect(usedWords).Count();
+                return commonWords >= Math.Max(2, Math.Min(titleWords.Length, usedWords.Length) / 2);
+            });
+            
+            if (!isTooSimilar)
             {
                 diversified.Add(rec);
-                UpdateDiversityTracking(rec, usedTitles, usedGenres, usedDecades, usedStudios);
+                usedTitles.Add(rec.Title);
             }
         }
         
-        // Second pass: Fill remaining slots with diverse recommendations using different strategies
+        // Second pass: Fill remaining slots with diverse recommendations
         if (diversified.Count < targetLimit)
         {
             var remaining = recommendations.Except(diversified).ToList();
+            var random = new Random(42); // Fixed seed for consistency
             
-            // Strategy 1: Try to find recommendations with different genres
-            var genreDiverse = remaining
-                .Where(r => !usedGenres.Any(usedGenre => 
-                    ExtractGenresFromTitle(r.Title).Any(genre => 
-                        genre.Contains(usedGenre, StringComparison.OrdinalIgnoreCase))))
-                .OrderByDescending(r => r.SimilarityScore)
-                .Take(targetLimit - diversified.Count)
-                .ToList();
-            
-            foreach (var rec in genreDiverse)
+            while (diversified.Count < targetLimit && remaining.Any())
             {
-                if (diversified.Count >= targetLimit) break;
-                diversified.Add(rec);
-                UpdateDiversityTracking(rec, usedTitles, usedGenres, usedDecades, usedStudios);
-            }
-            
-            // Strategy 2: Try to find recommendations from different decades
-            if (diversified.Count < targetLimit)
-            {
-                var decadeDiverse = remaining
-                    .Where(r => !usedDecades.Any(usedDecade => 
-                        ExtractDecadeFromTitle(r.Title) == usedDecade))
-                    .OrderByDescending(r => r.SimilarityScore)
-                    .Take(targetLimit - diversified.Count)
-                    .ToList();
+                // Randomly select from remaining recommendations
+                var randomIndex = random.Next(remaining.Count);
+                var selected = remaining[randomIndex];
                 
-                foreach (var rec in decadeDiverse)
-                {
-                    if (diversified.Count >= targetLimit) break;
-                    if (!diversified.Contains(rec))
-                    {
-                        diversified.Add(rec);
-                        UpdateDiversityTracking(rec, usedTitles, usedGenres, usedDecades, usedStudios);
-                    }
-                }
-            }
-            
-            // Strategy 3: Random selection from remaining high-quality recommendations
-            if (diversified.Count < targetLimit)
-            {
-                var stillRemaining = remaining.Except(diversified).ToList();
-                var random = new Random(42); // Fixed seed for consistency
-                
-                while (diversified.Count < targetLimit && stillRemaining.Any())
-                {
-                    // Weighted random selection favoring higher scores
-                    var weights = stillRemaining.Select(r => (double)r.SimilarityScore).ToArray();
-                    var totalWeight = weights.Sum();
-                    
-                    if (totalWeight > 0)
-                    {
-                        var randomValue = random.NextDouble() * totalWeight;
-                        var cumulativeWeight = 0.0;
-                        var selectedIndex = 0;
-                        
-                        for (int i = 0; i < weights.Length; i++)
-                        {
-                            cumulativeWeight += weights[i];
-                            if (randomValue <= cumulativeWeight)
-                            {
-                                selectedIndex = i;
-                                break;
-                            }
-                        }
-                        
-                        var selected = stillRemaining[selectedIndex];
-                        diversified.Add(selected);
-                        stillRemaining.RemoveAt(selectedIndex);
-                    }
-                    else
-                    {
-                        // Fallback to simple random selection
-                        var randomIndex = random.Next(stillRemaining.Count);
-                        var selected = stillRemaining[randomIndex];
-                        diversified.Add(selected);
-                        stillRemaining.RemoveAt(randomIndex);
-                    }
-                }
+                diversified.Add(selected);
+                remaining.RemoveAt(randomIndex);
             }
         }
         
         return diversified.OrderByDescending(r => r.SimilarityScore).ToList();
-    }
-
-    /// <summary>
-    /// Checks if a recommendation is diverse enough to be included
-    /// </summary>
-    private bool IsRecommendationDiverse(MovieRecommendationDto rec, HashSet<string> usedTitles, 
-        HashSet<string> usedGenres, HashSet<string> usedDecades, HashSet<string> usedStudios)
-    {
-        // Check title similarity
-        var titleWords = rec.Title.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var isTitleSimilar = usedTitles.Any(usedTitle => 
-        {
-            var usedWords = usedTitle.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var commonWords = titleWords.Intersect(usedWords).Count();
-            return commonWords >= Math.Max(2, Math.Min(titleWords.Length, usedWords.Length) / 2);
-        });
-        
-        if (isTitleSimilar) return false;
-        
-        // Check genre diversity
-        var genres = ExtractGenresFromTitle(rec.Title);
-        var isGenreSimilar = genres.Any(genre => 
-            usedGenres.Any(usedGenre => 
-                genre.Contains(usedGenre, StringComparison.OrdinalIgnoreCase) ||
-                usedGenre.Contains(genre, StringComparison.OrdinalIgnoreCase)));
-        
-        if (isGenreSimilar) return false;
-        
-        // Check decade diversity
-        var decade = ExtractDecadeFromTitle(rec.Title);
-        if (!string.IsNullOrEmpty(decade) && usedDecades.Contains(decade))
-            return false;
-        
-        // Check studio diversity (if we can extract it)
-        var studio = ExtractStudioFromTitle(rec.Title);
-        if (!string.IsNullOrEmpty(studio) && usedStudios.Contains(studio))
-            return false;
-        
-        return true;
-    }
-
-    /// <summary>
-    /// Updates diversity tracking sets
-    /// </summary>
-    private void UpdateDiversityTracking(MovieRecommendationDto rec, HashSet<string> usedTitles, 
-        HashSet<string> usedGenres, HashSet<string> usedDecades, HashSet<string> usedStudios)
-    {
-        usedTitles.Add(rec.Title);
-        
-        var genres = ExtractGenresFromTitle(rec.Title);
-        foreach (var genre in genres)
-        {
-            usedGenres.Add(genre);
-        }
-        
-        var decade = ExtractDecadeFromTitle(rec.Title);
-        if (!string.IsNullOrEmpty(decade))
-        {
-            usedDecades.Add(decade);
-        }
-        
-        var studio = ExtractStudioFromTitle(rec.Title);
-        if (!string.IsNullOrEmpty(studio))
-        {
-            usedStudios.Add(studio);
-        }
-    }
-
-    /// <summary>
-    /// Extracts potential genres from movie title (basic heuristic)
-    /// </summary>
-    private List<string> ExtractGenresFromTitle(string title)
-    {
-        var genres = new List<string>();
-        var genreKeywords = new[] { "action", "comedy", "drama", "horror", "thriller", "romance", "sci-fi", "fantasy", "documentary", "animation", "adventure", "mystery", "crime" };
-        
-        var titleLower = title.ToLowerInvariant();
-        foreach (var keyword in genreKeywords)
-        {
-            if (titleLower.Contains(keyword))
-            {
-                genres.Add(keyword);
-            }
-        }
-        
-        return genres;
-    }
-
-    /// <summary>
-    /// Extracts decade from movie title (basic heuristic)
-    /// </summary>
-    private string ExtractDecadeFromTitle(string title)
-    {
-        // Look for year patterns in title
-        var yearMatch = System.Text.RegularExpressions.Regex.Match(title, @"\b(19|20)\d{2}\b");
-        if (yearMatch.Success && int.TryParse(yearMatch.Value, out var year))
-        {
-            return (year / 10 * 10).ToString() + "s";
-        }
-        
-        return string.Empty;
-    }
-
-    /// <summary>
-    /// Extracts studio from movie title (basic heuristic)
-    /// </summary>
-    private string ExtractStudioFromTitle(string title)
-    {
-        // Look for common studio patterns
-        var studioPatterns = new[] { "disney", "marvel", "pixar", "warner", "universal", "sony", "paramount", "fox", "mgm", "lionsgate" };
-        
-        var titleLower = title.ToLowerInvariant();
-        foreach (var pattern in studioPatterns)
-        {
-            if (titleLower.Contains(pattern))
-            {
-                return pattern;
-            }
-        }
-        
-        return string.Empty;
     }
 
     #endregion
