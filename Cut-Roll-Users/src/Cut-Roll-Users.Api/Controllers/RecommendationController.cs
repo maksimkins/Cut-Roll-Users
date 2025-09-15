@@ -41,18 +41,23 @@ public class RecommendationController : ControllerBase
         catch (Exception ex) { return this.InternalServerError(ex.Message); }
     }
 
-    [HttpPost("recommendations/{movieId:guid}")]
-    public async Task<IActionResult> GetMovieRecommendations([FromRoute] Guid movieId, [FromBody] RecommendationRequestDto request)
+    [Authorize]
+    [HttpPost("user-recommendations")]
+    public async Task<IActionResult> GetUserRecommendations([FromBody] UserRecommendationRequestDto request)
     {
         try
         {
-            // Use the user preference service to get similar movies
-            var similarMovies = await _userPreferenceService.GetSimilarMoviesAsync(movieId, request.Limit);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized("User not authenticated");
 
-            return Ok(similarMovies);
+            // Get personalized recommendations based on user's preferences
+            var recommendations = await _userPreferenceService.GetContentBasedRecommendationsAsync(userId, request.Limit);
+
+            return Ok(recommendations);
         }
         catch (ArgumentNullException ex) { return BadRequest(ex.Message); }
-        catch (ArgumentException ex) { return NotFound(ex.Message); }
+        catch (ArgumentException ex) { return BadRequest(ex.Message); }
         catch (InvalidOperationException ex) { return Conflict(ex.Message); }
         catch (Exception ex) { return this.InternalServerError(ex.Message); }
     }
@@ -115,6 +120,13 @@ public class RecommendationController : ControllerBase
 public class SimilarMoviesRequestDto
 {
     public Guid MovieId { get; set; }
+    public int Limit { get; set; } = 10;
+    public List<Guid> ExcludeMovieIds { get; set; } = new();
+}
+
+// DTO for user recommendations request
+public class UserRecommendationRequestDto
+{
     public int Limit { get; set; } = 10;
     public List<Guid> ExcludeMovieIds { get; set; } = new();
 }
