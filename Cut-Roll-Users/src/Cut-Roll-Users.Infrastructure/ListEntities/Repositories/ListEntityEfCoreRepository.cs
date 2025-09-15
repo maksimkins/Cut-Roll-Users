@@ -139,7 +139,7 @@ public class ListEntityEfCoreRepository : IListEntityRepository
 
         if (request.SortByLikesAscending != null)
         {
-            query = query.OrderByDescending(l => l.Likes.Count());
+            query = !request.SortByLikesAscending.Value ? query.OrderByDescending(l => l.Likes.Count()) : query.OrderBy(l => l.Likes.Count());
         }
 
         var totalCount = await query.CountAsync();
