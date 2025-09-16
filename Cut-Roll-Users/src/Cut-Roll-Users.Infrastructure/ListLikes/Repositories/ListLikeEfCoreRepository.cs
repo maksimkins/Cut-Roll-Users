@@ -3,6 +3,7 @@ using Cut_Roll_Users.Core.ListEntities.Dtos;
 using Cut_Roll_Users.Core.ListLikes.Dtos;
 using Cut_Roll_Users.Core.ListLikes.Models;
 using Cut_Roll_Users.Core.ListLikes.Repositories;
+using Cut_Roll_Users.Core.MovieImages.Enums;
 using Cut_Roll_Users.Core.Users.Dtos;
 using Cut_Roll_Users.Infrastructure.Common.Data;
 using Microsoft.EntityFrameworkCore;
@@ -63,9 +64,9 @@ public class ListLikeEfCoreRepository : IListLikeRepository
     {
         var query = _context.ListLikes
             .Include(like => like.List)
-                .ThenInclude(list => list.User) 
+                .ThenInclude(list => list.User)
             .Include(like => like.List)
-                .ThenInclude(list => list.Movies) 
+                .ThenInclude(list => list.Movies).ThenInclude(lm => lm.Movie).ThenInclude(m => m.Images)
             .Where(like => like.UserId == dto.UserId)
             .Select(like => like.List) 
             .AsQueryable();
@@ -93,9 +94,17 @@ public class ListLikeEfCoreRepository : IListLikeRepository
                     UserName = list.User.UserName,
                     Email = list.User.Email,
                     AvatarPath = list.User.AvatarPath
-                }
+                },
+                Preview = list.Movies
+            .AsQueryable()
+            .Take(4)
+            .Select(m => m.Movie.Images
+                .Where(i => i.Type == ImageTypes.poster.ToString())
+                .FirstOrDefault())
+            .Select(i => i != null ? i.FilePath : null).ToList()
             })
             .ToListAsync();
+           
 
         return new PagedResult<ListEntityResponseDto>
         {
