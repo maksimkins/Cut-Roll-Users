@@ -141,6 +141,11 @@ public class ListEntityEfCoreRepository : IListEntityRepository
         {
             query = !request.SortByLikesAscending.Value ? query.OrderByDescending(l => l.Likes.Count()) : query.OrderBy(l => l.Likes.Count());
         }
+        else
+        {
+            // Default sorting by creation date if no likes sorting is specified
+            query = query.OrderByDescending(l => l.CreatedAt);
+        }
 
         var totalCount = await query.CountAsync();
 
@@ -148,7 +153,6 @@ public class ListEntityEfCoreRepository : IListEntityRepository
         var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
 
         var listEntities = await query
-            .OrderByDescending(l => l.CreatedAt)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .Select(l => new ListEntityResponseDto
