@@ -171,12 +171,12 @@ public class ListEntityEfCoreRepository : IListEntityRepository
                 MoviesCount = l.Movies.Count,
                 LikesCount = l.Likes.Count,
                 Preview = l.Movies
-            .AsQueryable()
-            .Take(4)
-            .Select(m => m.Movie.Images
-                .Where(i => i.Type == ImageTypes.poster.ToString())
-                .FirstOrDefault())
-            .Select(i => i != null ? i.FilePath : null).ToList()
+                    .Take(4)
+                    .Select(m => m.Movie.Images
+                        .Where(i => i.Type == ImageTypes.poster.ToString())
+                        .FirstOrDefault())
+                    .Select(i => i != null ? i.FilePath : null)
+                    .ToList()
             })
             .ToListAsync();
 
@@ -224,12 +224,12 @@ public class ListEntityEfCoreRepository : IListEntityRepository
                 MoviesCount = l.Movies.Count,
                 LikesCount = l.Likes.Count,
                 Preview = l.Movies
-                    .AsQueryable()
                     .Take(4)
                     .Select(m => m.Movie.Images
                         .Where(i => i.Type == ImageTypes.poster.ToString())
                         .FirstOrDefault())
-                    .Select(i => i != null ? i.FilePath : null).ToList()
+                    .Select(i => i != null ? i.FilePath : null)
+                    .ToList()
             })
             .ToListAsync();
 

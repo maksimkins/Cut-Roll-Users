@@ -96,12 +96,12 @@ public class ListLikeEfCoreRepository : IListLikeRepository
                     AvatarPath = list.User.AvatarPath
                 },
                 Preview = list.Movies
-            .AsQueryable()
-            .Take(4)
-            .Select(m => m.Movie.Images
-                .Where(i => i.Type == ImageTypes.poster.ToString())
-                .FirstOrDefault())
-            .Select(i => i != null ? i.FilePath : null).ToList()
+                    .Take(4)
+                    .Select(m => m.Movie.Images
+                        .Where(i => i.Type == ImageTypes.poster.ToString())
+                        .FirstOrDefault())
+                    .Select(i => i != null ? i.FilePath : null)
+                    .ToList()
             })
             .ToListAsync();
            
