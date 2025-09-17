@@ -5,6 +5,7 @@ using Cut_Roll_Users.Core.MovieEmbeddings.Dtos;
 using Cut_Roll_Users.Core.MovieEmbeddings.Services;
 using Cut_Roll_Users.Core.Common.Services;
 using Cut_Roll_Users.Core.Common.Dtos;
+using Cut_Roll_Users.Core.Common.DataProcessing;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -16,15 +17,18 @@ public class RecommendationController : ControllerBase
     private readonly IVectorMovieDatabaseService _vectorService;
     private readonly IMovieEmbeddingService _embeddingService;
     private readonly IUserPreferenceService _userPreferenceService;
+    private readonly ITextEmbeddingService _textEmbeddingService;
 
     public RecommendationController(
         IVectorMovieDatabaseService vectorService,
         IMovieEmbeddingService embeddingService,
-        IUserPreferenceService userPreferenceService)
+        IUserPreferenceService userPreferenceService,
+        ITextEmbeddingService textEmbeddingService)
     {
         _vectorService = vectorService;
         _embeddingService = embeddingService;
         _userPreferenceService = userPreferenceService;
+        _textEmbeddingService = textEmbeddingService;
     }
 
     [HttpPost("similar-movies")]
@@ -174,6 +178,54 @@ public class RecommendationController : ControllerBase
         catch (Exception ex)
         {
             return this.InternalServerError($"Error triggering background processing: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Diagnoses the embedding model output dimensions and current configuration
+    /// ADMIN ONLY - This helps debug embedding dimension issues
+    /// </summary>
+    [Authorize(Roles = "Admin")]
+    [HttpGet("diagnose-embeddings")]
+    public async Task<IActionResult> DiagnoseEmbeddings()
+    {
+        try
+        {
+            // Test with a sample text to see actual model output
+            var testText = "The Dark Knight is a superhero action movie directed by Christopher Nolan";
+            var embedding = await _textEmbeddingService.GenerateEmbeddingAsync(testText);
+            
+            var minValue = embedding.Min();
+            var maxValue = embedding.Max();
+            var meanValue = embedding.Average();
+            var stdDevValue = Math.Sqrt(embedding.Select(x => Math.Pow(x - embedding.Average(), 2)).Average());
+            
+            var diagnosis = new
+            {
+                TestText = testText,
+                ActualEmbeddingDimensions = embedding.Count,
+                ExpectedPineconeDimensions = 384, // Current configuration
+                EmbeddingSample = embedding.Take(10).ToArray(),
+                EmbeddingStats = new
+                {
+                    Min = minValue,
+                    Max = maxValue,
+                    Mean = meanValue,
+                    StdDev = stdDevValue
+                },
+                Recommendations = new
+                {
+                    CurrentDimensions = 384,
+                    SuggestedDimensions = new[] { 512, 768, 1024, 1536 },
+                    Note = "Higher dimensions typically provide better semantic understanding and more diverse recommendations"
+                }
+            };
+
+            return Ok(diagnosis);
+        }
+        catch (Exception ex)
+        {
+            return this.InternalServerError($"Error diagnosing embeddings: {ex.Message}");
         }
     }
 

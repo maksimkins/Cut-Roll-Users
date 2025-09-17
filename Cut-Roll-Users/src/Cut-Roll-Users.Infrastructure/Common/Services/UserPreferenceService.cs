@@ -967,7 +967,8 @@ public class UserPreferenceService : IUserPreferenceService
     }
 
     /// <summary>
-    /// Applies diversity filtering to reduce similar recommendations
+    /// Applies enhanced diversity filtering to reduce similar recommendations
+    /// Works better with higher dimensional embeddings (768+ dimensions)
     /// </summary>
     private List<MovieRecommendationDto> ApplyDiversityFiltering(List<MovieRecommendationDto> recommendations, int targetLimit)
     {
@@ -978,26 +979,43 @@ public class UserPreferenceService : IUserPreferenceService
 
         var diversified = new List<MovieRecommendationDto>();
         var usedTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var usedGenres = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var usedDecades = new HashSet<string>();
         
-        // First pass: Add high-scoring unique recommendations
+        // First pass: Add high-scoring unique recommendations with genre and decade diversity
         foreach (var rec in recommendations.OrderByDescending(r => r.SimilarityScore))
         {
             if (diversified.Count >= targetLimit)
                 break;
                 
-            // Check for title similarity (avoid very similar titles)
+            // Enhanced similarity checking
             var titleWords = rec.Title.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var isTooSimilar = usedTitles.Any(usedTitle => 
+            var isTitleTooSimilar = usedTitles.Any(usedTitle => 
             {
                 var usedWords = usedTitle.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 var commonWords = titleWords.Intersect(usedWords).Count();
                 return commonWords >= Math.Max(2, Math.Min(titleWords.Length, usedWords.Length) / 2);
             });
             
-            if (!isTooSimilar)
+            // Extract genre and decade from title for diversity
+            var genre = ExtractGenreFromTitle(rec.Title);
+            var decade = ExtractDecadeFromTitle(rec.Title);
+            
+            // Check if we already have too many movies from the same genre/decade
+            var genreCount = usedGenres.Count(g => g == genre);
+            var decadeCount = usedDecades.Count(d => d == decade);
+            
+            // Allow some repetition but not too much
+            var isDiverseEnough = !isTitleTooSimilar && 
+                                 genreCount < Math.Max(2, targetLimit / 4) && 
+                                 decadeCount < Math.Max(2, targetLimit / 3);
+            
+            if (isDiverseEnough)
             {
                 diversified.Add(rec);
                 usedTitles.Add(rec.Title);
+                if (!string.IsNullOrEmpty(genre)) usedGenres.Add(genre);
+                if (!string.IsNullOrEmpty(decade)) usedDecades.Add(decade);
             }
         }
         
@@ -1009,16 +1027,94 @@ public class UserPreferenceService : IUserPreferenceService
             
             while (diversified.Count < targetLimit && remaining.Any())
             {
-                // Randomly select from remaining recommendations
-                var randomIndex = random.Next(remaining.Count);
-                var selected = remaining[randomIndex];
+                // Prefer recommendations that add diversity
+                var bestCandidate = remaining
+                    .OrderByDescending(r => CalculateDiversityScore(r, usedTitles, usedGenres, usedDecades))
+                    .FirstOrDefault();
                 
-                diversified.Add(selected);
-                remaining.RemoveAt(randomIndex);
+                if (bestCandidate != null)
+                {
+                    diversified.Add(bestCandidate);
+                    remaining.Remove(bestCandidate);
+                    
+                    // Update tracking sets
+                    var titleWords = bestCandidate.Title.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    usedTitles.Add(bestCandidate.Title);
+                    
+                    var genre = ExtractGenreFromTitle(bestCandidate.Title);
+                    var decade = ExtractDecadeFromTitle(bestCandidate.Title);
+                    if (!string.IsNullOrEmpty(genre)) usedGenres.Add(genre);
+                    if (!string.IsNullOrEmpty(decade)) usedDecades.Add(decade);
+                }
+                else
+                {
+                    // Fallback to random selection
+                    var randomIndex = random.Next(remaining.Count);
+                    var selected = remaining[randomIndex];
+                    diversified.Add(selected);
+                    remaining.RemoveAt(randomIndex);
+                }
             }
         }
         
         return diversified.OrderByDescending(r => r.SimilarityScore).ToList();
+    }
+
+    /// <summary>
+    /// Extracts genre information from movie title for diversity filtering
+    /// </summary>
+    private string ExtractGenreFromTitle(string title)
+    {
+        var titleLower = title.ToLowerInvariant();
+        
+        // Common genre indicators in titles
+        if (titleLower.Contains("horror") || titleLower.Contains("scary") || titleLower.Contains("nightmare"))
+            return "horror";
+        if (titleLower.Contains("comedy") || titleLower.Contains("funny") || titleLower.Contains("laugh"))
+            return "comedy";
+        if (titleLower.Contains("action") || titleLower.Contains("fight") || titleLower.Contains("war"))
+            return "action";
+        if (titleLower.Contains("romance") || titleLower.Contains("love") || titleLower.Contains("heart"))
+            return "romance";
+        if (titleLower.Contains("drama") || titleLower.Contains("story") || titleLower.Contains("life"))
+            return "drama";
+        if (titleLower.Contains("sci-fi") || titleLower.Contains("space") || titleLower.Contains("future"))
+            return "sci-fi";
+        if (titleLower.Contains("thriller") || titleLower.Contains("suspense") || titleLower.Contains("mystery"))
+            return "thriller";
+        
+        return "unknown";
+    }
+
+    /// <summary>
+    /// Extracts decade information from movie title for diversity filtering
+    /// </summary>
+    private string ExtractDecadeFromTitle(string title)
+    {
+        // Look for year patterns in title
+        var yearMatch = System.Text.RegularExpressions.Regex.Match(title, @"\b(19|20)\d{2}\b");
+        if (yearMatch.Success)
+        {
+            var year = int.Parse(yearMatch.Value);
+            return $"{year / 10 * 10}s";
+        }
+        
+        return "unknown";
+    }
+
+    /// <summary>
+    /// Calculates diversity score for a recommendation
+    /// </summary>
+    private double CalculateDiversityScore(MovieRecommendationDto rec, HashSet<string> usedTitles, HashSet<string> usedGenres, HashSet<string> usedDecades)
+    {
+        var genre = ExtractGenreFromTitle(rec.Title);
+        var decade = ExtractDecadeFromTitle(rec.Title);
+        
+        var genreScore = usedGenres.Contains(genre) ? 0.5 : 1.0;
+        var decadeScore = usedDecades.Contains(decade) ? 0.5 : 1.0;
+        var titleScore = usedTitles.Contains(rec.Title) ? 0.0 : 1.0;
+        
+        return (genreScore + decadeScore + titleScore) / 3.0;
     }
 
     /// <summary>
