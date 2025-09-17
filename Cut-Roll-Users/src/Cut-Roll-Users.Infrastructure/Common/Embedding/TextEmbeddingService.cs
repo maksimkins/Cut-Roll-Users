@@ -68,7 +68,7 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         {
             var modelPath = !string.IsNullOrEmpty(_localEmbeddingOptions.ModelPath) 
                 ? _localEmbeddingOptions.ModelPath 
-                : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Models", "sentence-transformers.onnx");
+                : Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "Data", "Models", "model.onnx");
                 
             if (File.Exists(modelPath))
             {
@@ -96,23 +96,27 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
     {
         try
         {
-            if (!string.IsNullOrEmpty(_localEmbeddingOptions.TokenizerPath) && File.Exists(_localEmbeddingOptions.TokenizerPath))
+            var tokenizerPath = !string.IsNullOrEmpty(_localEmbeddingOptions.TokenizerPath) 
+                ? _localEmbeddingOptions.TokenizerPath 
+                : Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "Data", "Models", "tokenizer.json");
+                
+            if (File.Exists(tokenizerPath))
             {
-                var jsonContent = File.ReadAllText(_localEmbeddingOptions.TokenizerPath);
+                var jsonContent = File.ReadAllText(tokenizerPath);
                 _tokenizerVocabulary = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, int>>(jsonContent);
                 if (_tokenizerVocabulary != null)
                 {
                     _logger.LogInformation("Tokenizer vocabulary loaded from {TokenizerPath} with {Count} tokens", 
-                        _localEmbeddingOptions.TokenizerPath, _tokenizerVocabulary.Count);
+                        tokenizerPath, _tokenizerVocabulary.Count);
                 }
                 else
                 {
-                    _logger.LogWarning("Failed to deserialize tokenizer vocabulary from {TokenizerPath}", _localEmbeddingOptions.TokenizerPath);
+                    _logger.LogWarning("Failed to deserialize tokenizer vocabulary from {TokenizerPath}", tokenizerPath);
                 }
             }
             else
             {
-                _logger.LogWarning("Tokenizer path not provided or file not found: {TokenizerPath}", _localEmbeddingOptions.TokenizerPath);
+                _logger.LogWarning("Tokenizer path not provided or file not found: {TokenizerPath}", tokenizerPath);
             }
         }
         catch (Exception ex)
@@ -700,13 +704,12 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
             _logger.LogInformation("Output name: {Name}, Shape: {Shape}", result.Name, string.Join("x", dimensions));
         }
         
-        // Try to find the correct output - prioritize sentence-level embeddings over token-level
-        var embeddingOutput = results.FirstOrDefault(r => 
-            r.Name.Contains("pooler_output") || 
-            r.Name.Contains("sentence_embedding") ||
-            r.Name.Contains("embeddings") ||
-            r.Name.Contains("output")) ?? 
-            results.FirstOrDefault(r => r.Name.Contains("last_hidden_state"));
+        // Prioritize last_hidden_state for rich token-level embeddings
+        var embeddingOutput = results.FirstOrDefault(r => r.Name.Contains("last_hidden_state")) ??
+            results.FirstOrDefault(r => r.Name.Contains("pooler_output")) ??
+            results.FirstOrDefault(r => r.Name.Contains("sentence_embedding")) ??
+            results.FirstOrDefault(r => r.Name.Contains("embeddings")) ??
+            results.FirstOrDefault(r => r.Name.Contains("output"));
             
         // If we still don't have a good output, log all available outputs and use the first one
         if (embeddingOutput == null)
@@ -726,24 +729,51 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
             
         var output = embeddingOutput.AsEnumerable<float>().ToArray();
         
-        // Check if the output dimension matches expected Pinecone dimension
-        var expectedDimension = _pineconeOptions.VectorDimensions;
-        if (output.Length != expectedDimension)
+        // Handle different output shapes for last_hidden_state
+        if (embeddingOutput.Name.Contains("last_hidden_state"))
         {
-            _logger.LogWarning("ONNX model output dimension {Actual} does not match expected dimension {Expected}. Applying dimension reduction.", 
-                output.Length, expectedDimension);
+            _logger.LogInformation("Processing last_hidden_state output with shape {Shape}", string.Join("x", selectedDimensions));
             
-            // Apply dimension reduction if needed
-            if (output.Length > expectedDimension)
+            // last_hidden_state is typically [batch_size, sequence_length, hidden_size]
+            // We need to convert it to a single vector
+            if (selectedDimensions.Length == 3 && selectedDimensions[0] == 1)
             {
-                output = ReduceEmbeddingDimensions(output, expectedDimension);
+                var sequenceLength = selectedDimensions[1];
+                var hiddenSize = selectedDimensions[2];
+                var expectedTotalSize = sequenceLength * hiddenSize;
+                
+                _logger.LogInformation("last_hidden_state dimensions: batch={Batch}, seq_len={SeqLen}, hidden_size={HiddenSize}, total={Total}", 
+                    selectedDimensions[0], sequenceLength, hiddenSize, expectedTotalSize);
+                
+                if (output.Length == expectedTotalSize)
+                {
+                    // Use the full last_hidden_state as a flattened vector (4,608 dimensions)
+                    // This preserves all token-level information for maximum semantic richness
+                    _logger.LogInformation("Using full last_hidden_state: {SeqLen} tokens x {HiddenSize} dimensions = {Total} dimensions", 
+                        sequenceLength, hiddenSize, output.Length);
+                    // output is already the correct size (4,608), no pooling needed
+                }
+                else
+                {
+                    _logger.LogError("last_hidden_state size mismatch: expected {Expected}, got {Actual}", expectedTotalSize, output.Length);
+                    return GenerateFallbackEmbedding(text);
+                }
             }
             else
             {
-                _logger.LogWarning("Cannot reduce dimensions from {Actual} to {Expected}. Using fallback.", 
-                    output.Length, expectedDimension);
-                return GenerateFallbackEmbedding(text);
+                _logger.LogWarning("Unexpected last_hidden_state shape: {Shape}", string.Join("x", selectedDimensions));
             }
+        }
+        
+        // Check if the output dimension matches expected Pinecone dimension
+        var expectedDimension = _pineconeOptions.VectorDimensions;
+        _logger.LogInformation("Final embedding dimensions: {Actual}, Expected: {Expected}", output.Length, expectedDimension);
+        
+        if (output.Length != expectedDimension)
+        {
+            _logger.LogError("Embedding dimension mismatch! Actual: {Actual}, Expected: {Expected}. Using fallback.", 
+                output.Length, expectedDimension);
+            return GenerateFallbackEmbedding(text);
         }
 
         // Normalize the embedding
@@ -773,7 +803,7 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         var embedding = new float[embeddingDimension];
         var wordCount = words.Length;
         
-        _logger.LogDebug("Enhanced fallback embedding: {WordCount} words, dimension: {Dimension}", wordCount, embeddingDimension);
+        _logger.LogInformation("Enhanced fallback embedding: {WordCount} words, dimension: {Dimension}", wordCount, embeddingDimension);
 
         if (wordCount == 0)
             return embedding;

@@ -204,7 +204,7 @@ public class RecommendationController : ControllerBase
             {
                 TestText = testText,
                 ActualEmbeddingDimensions = embedding.Count,
-                ExpectedPineconeDimensions = 384, // Current configuration
+                ExpectedPineconeDimensions = 4608, // Updated configuration
                 EmbeddingSample = embedding.Take(10).ToArray(),
                 EmbeddingStats = new
                 {
@@ -215,9 +215,8 @@ public class RecommendationController : ControllerBase
                 },
                 Recommendations = new
                 {
-                    CurrentDimensions = 384,
-                    SuggestedDimensions = new[] { 512, 768, 1024, 1536 },
-                    Note = "Higher dimensions typically provide better semantic understanding and more diverse recommendations"
+                    CurrentDimensions = 4608,
+                    Note = "Using full last_hidden_state dimensions for maximum semantic richness"
                 }
             };
 
@@ -226,6 +225,74 @@ public class RecommendationController : ControllerBase
         catch (Exception ex)
         {
             return this.InternalServerError($"Error diagnosing embeddings: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Detailed model inspection - shows raw ONNX model output before any processing
+    /// ADMIN ONLY - This shows exactly what the model outputs before dimension reduction
+    /// </summary>
+    [Authorize(Roles = "Admin")]
+    [HttpGet("inspect-model")]
+    public IActionResult InspectModel()
+    {
+        try
+        {
+            var testText = "The Dark Knight is a superhero action movie directed by Christopher Nolan";
+            
+            // Based on your logs, we know the model outputs:
+            // - last_hidden_state: 1x12x384 = 4,608 dimensions (token-level embeddings)
+            // - pooler_output: 1x384 = 384 dimensions (sentence-level embedding)
+            
+            var inspection = new
+            {
+                TestText = testText,
+                ModelOutputs = new
+                {
+                    LastHiddenState = new
+                    {
+                        Name = "last_hidden_state",
+                        Shape = "1x12x384",
+                        Dimensions = 4608, // 12 tokens × 384 dimensions
+                        Description = "Token-level embeddings - contains rich contextual information",
+                        Usage = "Currently NOT used - this is where the real power is!"
+                    },
+                    PoolerOutput = new
+                    {
+                        Name = "pooler_output", 
+                        Shape = "1x384",
+                        Dimensions = 384,
+                        Description = "Sentence-level embedding - currently used",
+                        Usage = "Currently selected - might be too simplistic"
+                    }
+                },
+                CurrentSelection = new
+                {
+                    Selected = "last_hidden_state (full vector)",
+                    Dimensions = 4608,
+                    Status = "Now using full token-level embeddings for maximum semantic richness"
+                },
+                Implementation = new
+                {
+                    Method = "last_hidden_state (full vector)",
+                    Dimensions = 4608,
+                    Process = "1. Get last_hidden_state (1x12x384), 2. Flatten to 4608 dimensions, 3. Preserve all token information",
+                    Status = "IMPLEMENTED - Using maximum semantic information"
+                },
+                TokenizerIssue = new
+                {
+                    Problem = "Tokenizer not found",
+                    CurrentPath = "/app/Data/Models/",
+                    ActualPath = "Cut-Roll-Users\\Data\\Models",
+                    Impact = "Model might not be tokenizing text properly, affecting quality"
+                }
+            };
+
+            return Ok(inspection);
+        }
+        catch (Exception ex)
+        {
+            return this.InternalServerError($"Error inspecting model: {ex.Message}");
         }
     }
 

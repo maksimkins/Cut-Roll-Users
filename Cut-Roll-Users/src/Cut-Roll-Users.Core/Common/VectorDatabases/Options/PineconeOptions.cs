@@ -5,7 +5,7 @@ public class PineconeOptions
     public string ApiKey { get; set; } = string.Empty;
     public string Environment { get; set; } = string.Empty;
     public string IndexName { get; set; } = string.Empty;
-    public int VectorDimensions { get; set; } = 384;
+    public int VectorDimensions { get; set; } = 4608;
     
     // Namespace configuration
     public string? Namespace { get; set; } = "__default__";
