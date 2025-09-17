@@ -69,7 +69,8 @@ public class UserPreferenceService : IUserPreferenceService
 
             if (limit <= 0)
             {
-                throw new ArgumentException("Limit must be greater than 0", nameof(limit));
+                _logger.LogWarning("Invalid limit {Limit} provided, using default limit of 10", limit);
+                limit = 10; // Use a default limit instead of throwing
             }
 
             _logger.LogInformation("Getting similar movies for movie {MovieId} with limit {Limit}", movieId, limit);

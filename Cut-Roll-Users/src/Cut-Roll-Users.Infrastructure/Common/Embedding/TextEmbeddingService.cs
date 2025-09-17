@@ -6,6 +6,7 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using System.Text.Json;
 using Cut_Roll_Users.Core.Common.DataProcessing;
 using Cut_Roll_Users.Core.Common.DataProcessing.Models;
 using Cut_Roll_Users.Core.Movies.Service;
@@ -134,15 +135,50 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
             if (File.Exists(tokenizerPath))
             {
                 var jsonContent = File.ReadAllText(tokenizerPath);
-                _tokenizerVocabulary = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, int>>(jsonContent);
-                if (_tokenizerVocabulary != null)
+                try
                 {
-                    _logger.LogInformation("Tokenizer vocabulary loaded from {TokenizerPath} with {Count} tokens", 
-                        tokenizerPath, _tokenizerVocabulary.Count);
+                    // Try to parse as a simple dictionary first
+                    _tokenizerVocabulary = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, int>>(jsonContent);
+                    if (_tokenizerVocabulary != null)
+                    {
+                        _logger.LogInformation("Tokenizer vocabulary loaded from {TokenizerPath} with {Count} tokens", 
+                            tokenizerPath, _tokenizerVocabulary.Count);
+                    }
                 }
-                else
+                catch (JsonException)
                 {
-                    _logger.LogWarning("Failed to deserialize tokenizer vocabulary from {TokenizerPath}", tokenizerPath);
+                    // If that fails, try to parse as a complex tokenizer structure
+                    try
+                    {
+                        using var document = JsonDocument.Parse(jsonContent);
+                        if (document.RootElement.TryGetProperty("model", out var modelElement) && 
+                            modelElement.TryGetProperty("vocab", out var vocabElement))
+                        {
+                            _tokenizerVocabulary = new Dictionary<string, int>();
+                            foreach (var property in vocabElement.EnumerateObject())
+                            {
+                                if (property.Value.ValueKind == JsonValueKind.Number)
+                                {
+                                    _tokenizerVocabulary[property.Name] = property.Value.GetInt32();
+                                }
+                            }
+                            _logger.LogInformation("Tokenizer vocabulary loaded from complex structure with {Count} tokens", 
+                                _tokenizerVocabulary.Count);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Could not find vocab property in tokenizer file");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to parse tokenizer file as complex structure");
+                    }
+                }
+                
+                if (_tokenizerVocabulary == null || _tokenizerVocabulary.Count == 0)
+                {
+                    _logger.LogWarning("Failed to load tokenizer vocabulary from {TokenizerPath}", tokenizerPath);
                 }
             }
             else
