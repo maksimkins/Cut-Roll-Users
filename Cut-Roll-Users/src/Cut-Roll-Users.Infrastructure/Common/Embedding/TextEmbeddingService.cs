@@ -68,7 +68,7 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         {
             var modelPath = !string.IsNullOrEmpty(_localEmbeddingOptions.ModelPath) 
                 ? _localEmbeddingOptions.ModelPath 
-                : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "Data", "Models", "model.onnx");
+                : FindDataDirectory("Data", "Models", "model.onnx");
                 
             if (File.Exists(modelPath))
             {
@@ -90,6 +90,37 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
     }
 
     /// <summary>
+    /// Finds the data directory by searching up the directory tree
+    /// </summary>
+    private string FindDataDirectory(params string[] pathParts)
+    {
+        var currentDir = AppDomain.CurrentDomain.BaseDirectory;
+        var maxDepth = 10; // Prevent infinite loops
+        var depth = 0;
+        
+        while (depth < maxDepth)
+        {
+            var testPath = Path.Combine(currentDir, Path.Combine(pathParts));
+            if (File.Exists(testPath))
+            {
+                _logger.LogInformation("Found data file at: {Path}", testPath);
+                return testPath;
+            }
+            
+            var parentDir = Directory.GetParent(currentDir);
+            if (parentDir == null) break;
+            
+            currentDir = parentDir.FullName;
+            depth++;
+        }
+        
+        // Fallback to the original path construction
+        var fallbackPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", Path.Combine(pathParts));
+        _logger.LogWarning("Data file not found, using fallback path: {Path}", fallbackPath);
+        return fallbackPath;
+    }
+
+    /// <summary>
     /// Initializes the tokenizer vocabulary from JSON file
     /// </summary>
     private void InitializeTokenizer()
@@ -98,7 +129,7 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         {
             var tokenizerPath = !string.IsNullOrEmpty(_localEmbeddingOptions.TokenizerPath) 
                 ? _localEmbeddingOptions.TokenizerPath 
-                : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "Data", "Models", "tokenizer.json");
+                : FindDataDirectory("Data", "Models", "tokenizer.json");
                 
             if (File.Exists(tokenizerPath))
             {
