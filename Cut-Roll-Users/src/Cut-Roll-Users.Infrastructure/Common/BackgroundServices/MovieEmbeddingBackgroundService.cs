@@ -24,6 +24,7 @@ public class MovieEmbeddingBackgroundService : BackgroundService, IMovieEmbeddin
     private DateTime? _lastProcessedAt = null;
     private int _totalProcessed = 0;
     private int _totalFailed = 0;
+    private CancellationToken _stoppingToken;
 
     public MovieEmbeddingBackgroundService(
         IServiceProvider serviceProvider,
@@ -38,6 +39,7 @@ public class MovieEmbeddingBackgroundService : BackgroundService, IMovieEmbeddin
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        _stoppingToken = stoppingToken;
         _logger.LogInformation("MovieEmbeddingBackgroundService started");
 
         // Wait for the application to fully start
@@ -102,92 +104,126 @@ public class MovieEmbeddingBackgroundService : BackgroundService, IMovieEmbeddin
             return;
         }
 
-        await _processingSemaphore.WaitAsync();
+        // Check if we have a cancellation token and if it's been cancelled
+        if (_stoppingToken.IsCancellationRequested)
+        {
+            _logger.LogDebug("Processing cancelled, application is shutting down");
+            return;
+        }
+
+        await _processingSemaphore.WaitAsync(_stoppingToken);
         try
         {
             _isProcessing = true;
             _logger.LogInformation("Starting processing of new movies");
 
-            using var scope = _serviceProvider.CreateScope();
-            var movieEmbeddingService = scope.ServiceProvider.GetRequiredService<IMovieEmbeddingService>();
-            var sqlDataReaderService = scope.ServiceProvider.GetRequiredService<ISqlDataReaderService>();
-            var movieService = scope.ServiceProvider.GetRequiredService<IMovieService>();
-
-            // Get count of movies without embeddings with better error handling
-            int totalMovies, moviesWithoutEmbeddings;
-            try
+            // Check if service provider is disposed
+            if (_serviceProvider == null)
             {
-                totalMovies = await sqlDataReaderService.GetTotalMovieCountAsync();
-                moviesWithoutEmbeddings = await movieService.GetMoviesWithoutEmbeddingsCountAsync();
-                _logger.LogDebug("Database stats - Total movies: {Total}, Without embeddings: {WithoutEmbeddings}", 
-                    totalMovies, moviesWithoutEmbeddings);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to get movie counts from database");
-                throw; // Re-throw to trigger retry logic
-            }
-
-            if (moviesWithoutEmbeddings <= 0)
-            {
-                _logger.LogDebug("No new movies to process (movies without embeddings: {Count})", moviesWithoutEmbeddings);
+                _logger.LogError("Service provider is null, cannot process movies");
                 return;
             }
 
-            _logger.LogInformation("Found {NewMoviesCount} movies without embeddings out of {TotalMovies} total movies", 
-                moviesWithoutEmbeddings, totalMovies);
-
-            // Process movies in batches with improved error handling
-            var batchSize = _options.BatchSize;
-            var offset = 0;
-            var processedInCycle = 0;
-            var failedInCycle = 0;
-            var batchNumber = 1;
-
-            while (offset < moviesWithoutEmbeddings)
+            IServiceScope scope;
+            try
             {
+                scope = _serviceProvider.CreateScope();
+            }
+            catch (ObjectDisposedException ex)
+            {
+                _logger.LogError(ex, "Service provider is disposed, cannot create scope. Application may be shutting down.");
+                return;
+            }
+
+            using (scope)
+            {
+                var movieEmbeddingService = scope.ServiceProvider.GetRequiredService<IMovieEmbeddingService>();
+                var sqlDataReaderService = scope.ServiceProvider.GetRequiredService<ISqlDataReaderService>();
+                var movieService = scope.ServiceProvider.GetRequiredService<IMovieService>();
+
+                // Get count of movies without embeddings with better error handling
+                int totalMovies, moviesWithoutEmbeddings;
                 try
                 {
-                    _logger.LogDebug("Processing batch {BatchNumber} (offset: {Offset}, size: {BatchSize})", 
-                        batchNumber, offset, batchSize);
-
-                    var (successCount, failedCount) = await movieEmbeddingService.ProcessMoviesBatchAsync(offset, batchSize);
-                    
-                    processedInCycle += successCount;
-                    failedInCycle += failedCount;
-                    _totalProcessed += successCount;
-                    _totalFailed += failedCount;
-
-                    _logger.LogInformation("Batch {BatchNumber} completed: Success={Success}, Failed={Failed}, Total processed this cycle: {TotalProcessed}", 
-                        batchNumber, successCount, failedCount, processedInCycle);
-
-                    offset += batchSize;
-                    batchNumber++;
-
-                    // Small delay between batches to avoid overwhelming the system
-                    if (offset < moviesWithoutEmbeddings) // Only delay if there are more batches
-                    {
-                        await Task.Delay(TimeSpan.FromMilliseconds(_options.BatchDelayMs));
-                    }
+                    totalMovies = await sqlDataReaderService.GetTotalMovieCountAsync();
+                    moviesWithoutEmbeddings = await movieService.GetMoviesWithoutEmbeddingsCountAsync();
+                    _logger.LogDebug("Database stats - Total movies: {Total}, Without embeddings: {WithoutEmbeddings}", 
+                        totalMovies, moviesWithoutEmbeddings);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error processing batch {BatchNumber} (offset: {Offset})", batchNumber, offset);
-                    failedInCycle++;
-                    _totalFailed++;
-                    
-                    // Continue with next batch instead of stopping completely
-                    offset += batchSize;
-                    batchNumber++;
-                    
-                    // Longer delay after batch error
-                    await Task.Delay(TimeSpan.FromMilliseconds(_options.BatchDelayMs * 2));
+                    _logger.LogError(ex, "Failed to get movie counts from database");
+                    throw; // Re-throw to trigger retry logic
                 }
-            }
 
-            _lastProcessedAt = DateTime.UtcNow;
-            _logger.LogInformation("Completed processing cycle. Processed: {Processed}, Failed: {Failed}, Total processed: {TotalProcessed}, Total failed: {TotalFailed}", 
-                processedInCycle, failedInCycle, _totalProcessed, _totalFailed);
+                if (moviesWithoutEmbeddings <= 0)
+                {
+                    _logger.LogDebug("No new movies to process (movies without embeddings: {Count})", moviesWithoutEmbeddings);
+                    return;
+                }
+
+                _logger.LogInformation("Found {NewMoviesCount} movies without embeddings out of {TotalMovies} total movies", 
+                    moviesWithoutEmbeddings, totalMovies);
+
+                // Process movies in batches with improved error handling
+                var batchSize = _options.BatchSize;
+                var offset = 0;
+                var processedInCycle = 0;
+                var failedInCycle = 0;
+                var batchNumber = 1;
+
+                while (offset < moviesWithoutEmbeddings)
+                {
+                    // Check for cancellation before each batch
+                    if (_stoppingToken.IsCancellationRequested)
+                    {
+                        _logger.LogInformation("Processing cancelled during batch {BatchNumber}, stopping gracefully", batchNumber);
+                        break;
+                    }
+
+                    try
+                    {
+                        _logger.LogDebug("Processing batch {BatchNumber} (offset: {Offset}, size: {BatchSize})", 
+                            batchNumber, offset, batchSize);
+
+                        var (successCount, failedCount) = await movieEmbeddingService.ProcessMoviesBatchAsync(offset, batchSize);
+                        
+                        processedInCycle += successCount;
+                        failedInCycle += failedCount;
+                        _totalProcessed += successCount;
+                        _totalFailed += failedCount;
+
+                        _logger.LogInformation("Batch {BatchNumber} completed: Success={Success}, Failed={Failed}, Total processed this cycle: {TotalProcessed}", 
+                            batchNumber, successCount, failedCount, processedInCycle);
+
+                        offset += batchSize;
+                        batchNumber++;
+
+                        // Small delay between batches to avoid overwhelming the system
+                        if (offset < moviesWithoutEmbeddings) // Only delay if there are more batches
+                        {
+                            await Task.Delay(TimeSpan.FromMilliseconds(_options.BatchDelayMs));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error processing batch {BatchNumber} (offset: {Offset})", batchNumber, offset);
+                        failedInCycle++;
+                        _totalFailed++;
+                        
+                        // Continue with next batch instead of stopping completely
+                        offset += batchSize;
+                        batchNumber++;
+                        
+                        // Longer delay after batch error
+                        await Task.Delay(TimeSpan.FromMilliseconds(_options.BatchDelayMs * 2));
+                    }
+                }
+
+                _lastProcessedAt = DateTime.UtcNow;
+                _logger.LogInformation("Completed processing cycle. Processed: {Processed}, Failed: {Failed}, Total processed: {TotalProcessed}, Total failed: {TotalFailed}", 
+                    processedInCycle, failedInCycle, _totalProcessed, _totalFailed);
+            }
         }
         catch (Exception ex)
         {
