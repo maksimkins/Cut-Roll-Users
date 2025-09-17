@@ -318,10 +318,12 @@ public class UserPreferenceService : IUserPreferenceService
 
             foreach (var (data, weight, interactionType) in weightedMovieData)
             {
-                var embedding = await _textEmbeddingService.GenerateMovieEmbeddingAsync(data);
+                // Use the same text preparation method as stored movie embeddings
+                var textToEmbed = PrepareTextForEmbedding(data);
+                var embedding = await _textEmbeddingService.GenerateEmbeddingAsync(textToEmbed);
                 if (embedding != null && embedding.Any())
                 {
-                    embeddings.Add(embedding);
+                    embeddings.Add(embedding.ToList());
                     weights.Add(weight);
                 }
             }
@@ -545,162 +547,25 @@ public class UserPreferenceService : IUserPreferenceService
         {
             _logger.LogDebug("Generating collaborative recommendations for user {UserId}", userId);
 
-            // Step 1: Get user's liked movies and their ratings
-            var userMovies = await GetUserLikedMoviesAsync(userId);
+            // Get user's liked movies
+            var userMovies = await _movieService.GetLikedMoviesByUserIdAsync(userId);
             if (!userMovies.Any())
             {
                 _logger.LogDebug("No liked movies found for user {UserId}, skipping collaborative filtering", userId);
                 return new List<MovieRecommendationDto>();
             }
 
-            // Step 2: Find similar users based on movie preferences
-            var similarUsers = await FindSimilarUsersAsync(userId, userMovies);
-            if (!similarUsers.Any())
-            {
-                _logger.LogDebug("No similar users found for user {UserId}", userId);
-                return new List<MovieRecommendationDto>();
-            }
-
-            // Step 3: Get movies liked by similar users that the current user hasn't seen
-            var recommendations = await GetMoviesFromSimilarUsersAsync(userId, similarUsers, limit);
-            
-            _logger.LogDebug("Generated {Count} collaborative recommendations for user {UserId}", 
-                recommendations.Count, userId);
-            
-            return recommendations;
+            // For now, collaborative filtering is disabled due to complexity
+            // In a real system, you'd implement sophisticated algorithms like:
+            // - Cosine similarity on user-item matrices
+            // - Matrix factorization (SVD, NMF)
+            // - Deep learning approaches (neural collaborative filtering)
+            _logger.LogDebug("Collaborative filtering disabled - returning empty recommendations for user {UserId}", userId);
+            return new List<MovieRecommendationDto>();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating collaborative recommendations for user {UserId}", userId);
-            return new List<MovieRecommendationDto>();
-        }
-    }
-
-    private async Task<List<Movie>> GetUserLikedMoviesAsync(string userId)
-    {
-        try
-        {
-            var likedMovies = await _movieService.GetLikedMoviesByUserIdAsync(userId);
-            return likedMovies.ToList();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting liked movies for user {UserId}", userId);
-            return new List<Movie>();
-        }
-    }
-
-    private async Task<List<string>> FindSimilarUsersAsync(string userId, List<Movie> userMovies)
-    {
-        try
-        {
-            // This is a simplified implementation
-            // In a real system, you'd use more sophisticated algorithms like:
-            // - Cosine similarity on user-item matrices
-            // - Matrix factorization
-            // - Deep learning approaches
-            
-            var similarUsers = new List<string>();
-            var userMovieIds = userMovies.Select(m => m.Id).ToHashSet();
-
-            // Get all users who have liked at least one of the same movies
-            // This is a basic approach - in production you'd use more sophisticated methods
-            var allUsers = await GetAllUsersWithLikesAsync();
-            
-            foreach (var otherUserId in allUsers)
-            {
-                if (otherUserId == userId) continue;
-
-                var otherUserMovies = await _movieService.GetLikedMoviesByUserIdAsync(otherUserId);
-                var otherUserMovieIds = otherUserMovies.Select(m => m.Id).ToHashSet();
-
-                // Calculate Jaccard similarity (intersection over union)
-                var intersection = userMovieIds.Intersect(otherUserMovieIds).Count();
-                var union = userMovieIds.Union(otherUserMovieIds).Count();
-                
-                if (union > 0)
-                {
-                    var similarity = (double)intersection / union;
-                    
-                    // Consider users similar if they share at least 20% of movies
-                    if (similarity >= 0.2)
-                    {
-                        similarUsers.Add(otherUserId);
-                    }
-                }
-            }
-
-            _logger.LogDebug("Found {Count} similar users for user {UserId}", similarUsers.Count, userId);
-            return similarUsers;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error finding similar users for user {UserId}", userId);
-            return new List<string>();
-        }
-    }
-
-    private Task<List<string>> GetAllUsersWithLikesAsync()
-    {
-        try
-        {
-            // This is a placeholder - in a real system you'd have a proper user service
-            // For now, we'll return an empty list to avoid breaking the system
-            _logger.LogDebug("Getting all users with likes - placeholder implementation");
-            return Task.FromResult(new List<string>());
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting all users with likes");
-            return Task.FromResult(new List<string>());
-        }
-    }
-
-    private async Task<List<MovieRecommendationDto>> GetMoviesFromSimilarUsersAsync(
-        string userId, 
-        List<string> similarUsers, 
-        int limit)
-    {
-        try
-        {
-            var recommendations = new List<MovieRecommendationDto>();
-            var userLikedMovieIds = (await _movieService.GetLikedMoviesByUserIdAsync(userId))
-                .Select(m => m.Id).ToHashSet();
-
-            foreach (var similarUserId in similarUsers.Take(5)) // Limit to top 5 similar users
-            {
-                var similarUserMovies = await _movieService.GetLikedMoviesByUserIdAsync(similarUserId);
-                
-                foreach (var movie in similarUserMovies)
-                {
-                    // Skip movies the user has already liked
-                    if (userLikedMovieIds.Contains(movie.Id))
-                        continue;
-
-                    // Create recommendation
-                    var recommendation = new MovieRecommendationDto
-                    {
-                        MovieId = movie.Id,
-                        Title = movie.Title,
-                        PosterPath = movie.Images?.FirstOrDefault(i => i.Type == "poster")?.FilePath,
-                        SimilarityScore = 0.8 // Placeholder score
-                    };
-
-                    recommendations.Add(recommendation);
-                }
-            }
-
-            // Remove duplicates and sort by score
-            return recommendations
-                .GroupBy(r => r.MovieId)
-                .Select(g => g.First())
-                .OrderByDescending(r => r.SimilarityScore)
-                .Take(limit)
-                .ToList();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting movies from similar users for user {UserId}", userId);
             return new List<MovieRecommendationDto>();
         }
     }
@@ -740,33 +605,6 @@ public class UserPreferenceService : IUserPreferenceService
             .ToList();
     }
 
-    private List<float> CalculateWeightedAverageEmbedding(List<List<float>> embeddings, List<float> weights)
-    {
-        if (!embeddings.Any()) return new List<float>();
-
-        var dimension = embeddings[0].Count;
-        var weightedSum = new float[dimension];
-        var totalWeight = weights.Sum();
-
-        for (int i = 0; i < embeddings.Count; i++)
-        {
-            var embedding = embeddings[i];
-            var weight = weights[i];
-
-            for (int j = 0; j < dimension; j++)
-            {
-                weightedSum[j] += embedding[j] * weight;
-            }
-        }
-
-        // Normalize by total weight
-        for (int j = 0; j < dimension; j++)
-        {
-            weightedSum[j] /= totalWeight;
-        }
-
-        return weightedSum.ToList();
-    }
 
     /// <summary>
     /// Calculates user-specific weighted average embedding with enhanced personalization
@@ -1269,7 +1107,9 @@ public class UserPreferenceService : IUserPreferenceService
                 PosterPath = null
             };
 
-            var embedding = await _textEmbeddingService.GenerateMovieEmbeddingAsync(popularMovieData);
+            // Use the same text preparation method as stored movie embeddings
+            var textToEmbed = PrepareTextForEmbedding(popularMovieData);
+            var embedding = await _textEmbeddingService.GenerateEmbeddingAsync(textToEmbed);
             return embedding?.ToList();
         }
         catch (Exception ex)
@@ -1278,6 +1118,124 @@ public class UserPreferenceService : IUserPreferenceService
             return null;
         }
     }
+
+    /// <summary>
+    /// Prepares movie data into a text string suitable for embedding (same as TextEmbeddingService)
+    /// This ensures consistency between user taste vectors and stored movie embeddings
+    /// </summary>
+    private string PrepareTextForEmbedding(MovieDataForEmbeddingDto movieData)
+    {
+        var textParts = new List<string>();
+
+        // Basic movie information with unique identifiers
+        textParts.Add($"MOVIE_TITLE: {movieData.Title}");
+        
+        if (!string.IsNullOrEmpty(movieData.OriginalTitle) && movieData.OriginalTitle != movieData.Title)
+        {
+            textParts.Add($"ORIGINAL_TITLE: {movieData.OriginalTitle}");
+        }
+
+        // Add unique movie ID for better distinction
+        textParts.Add($"MOVIE_ID: {movieData.Id}");
+
+        if (!string.IsNullOrEmpty(movieData.Overview))
+        {
+            textParts.Add($"PLOT: {movieData.Overview}");
+        }
+
+        if (!string.IsNullOrEmpty(movieData.Tagline))
+        {
+            textParts.Add($"TAGLINE: {movieData.Tagline}");
+        }
+
+        // Genres with weighted importance
+        if (movieData.Genres.Any())
+        {
+            var genreText = string.Join(" ", movieData.Genres.Select(g => $"GENRE_{g}"));
+            textParts.Add(genreText);
+        }
+
+        // Keywords with weighted importance
+        if (movieData.Keywords.Any())
+        {
+            var keywordText = string.Join(" ", movieData.Keywords.Select(k => $"KEYWORD_{k}"));
+            textParts.Add(keywordText);
+        }
+
+        // Cast with character names and actor names
+        if (movieData.Cast.Any())
+        {
+            var topCast = movieData.Cast.Take(15); // Increased from 10
+            var castText = string.Join(" ", topCast.Select(c => $"ACTOR_{c}"));
+            textParts.Add(castText);
+        }
+
+        // Crew with specific roles
+        if (movieData.Crew.Any())
+        {
+            var topCrew = movieData.Crew.Take(15); // Increased from 10
+            var crewText = string.Join(" ", topCrew.Select(c => $"CREW_{c}"));
+            textParts.Add(crewText);
+        }
+
+        // Production companies with weighted importance
+        if (movieData.ProductionCompanies.Any())
+        {
+            var companyText = string.Join(" ", movieData.ProductionCompanies.Select(pc => $"STUDIO_{pc}"));
+            textParts.Add(companyText);
+        }
+
+        // Production countries
+        if (movieData.ProductionCountries.Any())
+        {
+            var countryText = string.Join(" ", movieData.ProductionCountries.Select(pc => $"COUNTRY_{pc}"));
+            textParts.Add(countryText);
+        }
+
+        // Spoken languages
+        if (movieData.SpokenLanguages.Any())
+        {
+            var languageText = string.Join(" ", movieData.SpokenLanguages.Select(sl => $"LANGUAGE_{sl}"));
+            textParts.Add(languageText);
+        }
+
+        // Additional metadata with specific formatting
+        if (movieData.ReleaseDate.HasValue)
+        {
+            textParts.Add($"YEAR_{movieData.ReleaseDate.Value.Year}");
+            textParts.Add($"DECADE_{movieData.ReleaseDate.Value.Year / 10 * 10}s");
+        }
+
+        if (movieData.Runtime.HasValue)
+        {
+            var runtimeCategory = movieData.Runtime.Value switch
+            {
+                < 90 => "SHORT_FILM",
+                < 120 => "STANDARD_LENGTH",
+                < 180 => "LONG_FILM",
+                _ => "EPIC_LENGTH"
+            };
+            textParts.Add($"RUNTIME_{runtimeCategory}_{movieData.Runtime.Value}min");
+        }
+
+        if (movieData.Budget.HasValue && movieData.Budget.Value > 0)
+        {
+            var budgetCategory = movieData.Budget.Value switch
+            {
+                < 1000000 => "LOW_BUDGET",
+                < 10000000 => "MEDIUM_BUDGET",
+                < 100000000 => "HIGH_BUDGET",
+                _ => "BLOCKBUSTER_BUDGET"
+            };
+            textParts.Add($"BUDGET_{budgetCategory}");
+        }
+
+        // Add movie uniqueness markers
+        textParts.Add($"UNIQUE_MOVIE_{movieData.Id.ToString().Substring(0, 8)}");
+
+        return string.Join(" ", textParts);
+    }
+
 
     #endregion
 }
