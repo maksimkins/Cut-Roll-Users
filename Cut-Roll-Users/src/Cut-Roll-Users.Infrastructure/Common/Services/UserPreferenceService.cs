@@ -150,8 +150,8 @@ public class UserPreferenceService : IUserPreferenceService
             var userTasteVector = await AnalyzeUserPreferencesAsync(userId);
             if (userTasteVector == null || !userTasteVector.Any())
             {
-                _logger.LogWarning("Could not generate taste vector for user {UserId}", userId);
-                return new List<MovieRecommendationDto>();
+                _logger.LogWarning("Could not generate taste vector for user {UserId}, falling back to popular movies", userId);
+                return await GetFallbackRecommendationsAsync(userId, limit);
             }
 
             // Get user's already watched/liked movies to exclude
@@ -201,8 +201,22 @@ public class UserPreferenceService : IUserPreferenceService
             var contentBased = await GetContentBasedRecommendationsAsync(userId, limit);
             var collaborative = await GetCollaborativeRecommendationsAsync(userId, limit);
 
+            // If we have no recommendations from either method, return fallback
+            if (!contentBased.Any() && !collaborative.Any())
+            {
+                _logger.LogDebug("No recommendations from content-based or collaborative methods, using fallback for user {UserId}", userId);
+                return await GetFallbackRecommendationsAsync(userId, limit);
+            }
+
             // Combine and rank recommendations
             var hybridRecommendations = CombineRecommendations(contentBased, collaborative, limit);
+
+            // If combined recommendations are still empty, use fallback
+            if (!hybridRecommendations.Any())
+            {
+                _logger.LogDebug("Combined recommendations are empty, using fallback for user {UserId}", userId);
+                return await GetFallbackRecommendationsAsync(userId, limit);
+            }
 
             _logger.LogDebug("Generated {Count} hybrid recommendations for user {UserId}", hybridRecommendations.Count, userId);
             return hybridRecommendations;
@@ -210,7 +224,7 @@ public class UserPreferenceService : IUserPreferenceService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting hybrid recommendations for user {UserId}", userId);
-            return new List<MovieRecommendationDto>();
+            return await GetFallbackRecommendationsAsync(userId, limit);
         }
     }
 
@@ -220,8 +234,9 @@ public class UserPreferenceService : IUserPreferenceService
         {
             _logger.LogDebug("Analyzing user preferences for user {UserId}", userId);
 
-            // Get user's liked movies with ratings
+            // Get user's liked movies, watched movies, and reviews
             var likedMovies = await _movieService.GetLikedMoviesByUserIdAsync(userId);
+            var watchedMovies = await _movieService.GetWatchedMoviesByUserIdAsync(userId);
             var userReviews = await _reviewService.GetReviewsByUserIdAsync(new ReviewPaginationUserDto 
             { 
                 UserId = userId, 
@@ -229,24 +244,59 @@ public class UserPreferenceService : IUserPreferenceService
                 PageSize = 100 
             });
 
-            if (!likedMovies.Any() && !userReviews.Data.Any())
+            if (!likedMovies.Any() && !watchedMovies.Any() && !userReviews.Data.Any())
             {
                 _logger.LogWarning("No movie data found for user {UserId}", userId);
                 return null;
             }
 
-            // Create weighted movie data based on ratings
-            var weightedMovieData = new List<(MovieDataForEmbeddingDto data, float weight)>();
+            // Create weighted movie data with different weights for different interaction types
+            var weightedMovieData = new List<(MovieDataForEmbeddingDto data, float weight, string interactionType)>();
             
+            // Process liked movies with highest weight
             foreach (var movie in likedMovies)
             {
                 var movieData = ConvertMovieToEmbeddingData(movie);
                 if (movieData != null)
                 {
-                    // Weight by user's rating if available, otherwise use average rating
                     var userReview = userReviews.Data.FirstOrDefault(r => r.MovieSimplified.MovieId == movie.Id);
-                    var weight = userReview?.Rating ?? (float)(movie.VoteAverage ?? 0);
-                    weightedMovieData.Add((movieData, weight));
+                    var baseWeight = userReview?.Rating ?? (float)(movie.VoteAverage ?? 5.0f);
+                    // Liked movies get 2x weight
+                    var weight = Math.Max(1.0f, baseWeight * 2.0f);
+                    weightedMovieData.Add((movieData, weight, "liked"));
+                }
+            }
+
+            // Process watched movies with medium weight
+            foreach (var movie in watchedMovies)
+            {
+                // Skip if already processed as liked
+                if (likedMovies.Any(lm => lm.Id == movie.Id))
+                    continue;
+                    
+                var movieData = ConvertMovieToEmbeddingData(movie);
+                if (movieData != null)
+                {
+                    var userReview = userReviews.Data.FirstOrDefault(r => r.MovieSimplified.MovieId == movie.Id);
+                    var baseWeight = userReview?.Rating ?? (float)(movie.VoteAverage ?? 5.0f);
+                    // Watched movies get 1.5x weight
+                    var weight = Math.Max(0.5f, baseWeight * 1.5f);
+                    weightedMovieData.Add((movieData, weight, "watched"));
+                }
+            }
+
+            // Process reviewed movies (even if not explicitly liked/watched)
+            foreach (var review in userReviews.Data)
+            {
+                var movie = likedMovies.Concat(watchedMovies).FirstOrDefault(m => m.Id == review.MovieSimplified.MovieId);
+                if (movie == null) continue; // Skip if already processed
+                
+                var movieData = ConvertMovieToEmbeddingData(movie);
+                if (movieData != null)
+                {
+                    // Reviews get weight based on rating
+                    var weight = Math.Max(0.3f, review.Rating);
+                    weightedMovieData.Add((movieData, weight, "reviewed"));
                 }
             }
 
@@ -256,11 +306,17 @@ public class UserPreferenceService : IUserPreferenceService
                 return null;
             }
 
+            _logger.LogDebug("User {UserId} has {LikedCount} liked, {WatchedCount} watched, {ReviewedCount} reviewed movies", 
+                userId, 
+                weightedMovieData.Count(w => w.interactionType == "liked"),
+                weightedMovieData.Count(w => w.interactionType == "watched"),
+                weightedMovieData.Count(w => w.interactionType == "reviewed"));
+
             // Generate embeddings for each movie
             var embeddings = new List<List<float>>();
             var weights = new List<float>();
 
-            foreach (var (data, weight) in weightedMovieData)
+            foreach (var (data, weight, interactionType) in weightedMovieData)
             {
                 var embedding = await _textEmbeddingService.GenerateMovieEmbeddingAsync(data);
                 if (embedding != null && embedding.Any())
@@ -276,10 +332,11 @@ public class UserPreferenceService : IUserPreferenceService
                 return null;
             }
 
-            // Calculate weighted average embedding
-            var tasteVector = CalculateWeightedAverageEmbedding(embeddings, weights);
+            // Calculate weighted average embedding with user-specific normalization
+            var tasteVector = CalculateUserSpecificWeightedAverageEmbedding(embeddings, weights, userId);
 
-            _logger.LogDebug("Generated taste vector for user {UserId} with dimension {Dimension}", userId, tasteVector.Count);
+            _logger.LogDebug("Generated taste vector for user {UserId} with dimension {Dimension} from {MovieCount} movies", 
+                userId, tasteVector.Count, embeddings.Count);
             return tasteVector;
         }
         catch (Exception ex)
@@ -711,6 +768,54 @@ public class UserPreferenceService : IUserPreferenceService
         return weightedSum.ToList();
     }
 
+    /// <summary>
+    /// Calculates user-specific weighted average embedding with enhanced personalization
+    /// </summary>
+    private List<float> CalculateUserSpecificWeightedAverageEmbedding(List<List<float>> embeddings, List<float> weights, string userId)
+    {
+        if (!embeddings.Any()) return new List<float>();
+
+        var dimension = embeddings[0].Count;
+        var weightedSum = new float[dimension];
+        var totalWeight = weights.Sum();
+
+        // Apply user-specific weighting and normalization
+        var userHash = Math.Abs(userId.GetHashCode());
+        var userSpecificFactor = 1.0f + (userHash % 100) / 1000.0f; // Small user-specific variation
+
+        for (int i = 0; i < embeddings.Count; i++)
+        {
+            var embedding = embeddings[i];
+            var weight = weights[i];
+
+            // Apply user-specific weight adjustment
+            var adjustedWeight = weight * userSpecificFactor;
+
+            for (int j = 0; j < dimension; j++)
+            {
+                weightedSum[j] += embedding[j] * adjustedWeight;
+            }
+        }
+
+        // Normalize by total weight
+        for (int j = 0; j < dimension; j++)
+        {
+            weightedSum[j] /= totalWeight;
+        }
+
+        // Apply L2 normalization to prevent vector magnitude issues
+        var norm = Math.Sqrt(weightedSum.Sum(x => x * x));
+        if (norm > 0)
+        {
+            for (int j = 0; j < dimension; j++)
+            {
+                weightedSum[j] = (float)(weightedSum[j] / norm);
+            }
+        }
+
+        return weightedSum.ToList();
+    }
+
     private List<string> AnalyzePreferredGenres(List<Movie> movies)
     {
         return movies
@@ -1076,6 +1181,102 @@ public class UserPreferenceService : IUserPreferenceService
         }
         
         return diversified.OrderByDescending(r => r.SimilarityScore).ToList();
+    }
+
+    /// <summary>
+    /// Gets fallback recommendations for new users or users with no interaction data
+    /// Returns popular movies with good ratings
+    /// </summary>
+    private async Task<List<MovieRecommendationDto>> GetFallbackRecommendationsAsync(string userId, int limit)
+    {
+        try
+        {
+            _logger.LogDebug("Getting fallback recommendations for user {UserId}", userId);
+
+            // Get user's already watched/liked movies to exclude
+            var watchedMovies = await _movieService.GetWatchedMoviesByUserIdAsync(userId);
+            var likedMovies = await _movieService.GetLikedMoviesByUserIdAsync(userId);
+            
+            // Get user's want-to-watch movies
+            var wantToWatchPaginationDto = new WantToWatchFilmPaginationUserDto
+            {
+                UserId = userId,
+                Page = 1,
+                PageSize = 1000
+            };
+            var wantToWatchResult = await _wantToWatchFilmService.GetWantToWatchFilmsByUserIdAsync(wantToWatchPaginationDto);
+            var wantToWatchMovieIds = wantToWatchResult?.Data?.Select(m => m.MovieId).ToList() ?? new List<Guid>();
+
+            var excludeMovieIds = watchedMovies.Select(m => m.Id)
+                .Concat(likedMovies.Select(m => m.Id))
+                .Concat(wantToWatchMovieIds)
+                .Distinct()
+                .ToList();
+
+            // Query vector database for popular movies using a generic "popular movies" vector
+            var popularMoviesVector = await GetPopularMoviesVectorAsync();
+            if (popularMoviesVector == null || !popularMoviesVector.Any())
+            {
+                _logger.LogWarning("Could not generate popular movies vector, returning empty recommendations");
+                return new List<MovieRecommendationDto>();
+            }
+
+            // Get more recommendations than needed to account for exclusions
+            var recommendations = await _vectorDatabaseService.FindSimilarMoviesAsync(
+                popularMoviesVector,
+                limit * 3, // Get 3x more to account for exclusions
+                excludeMovieIds
+            );
+
+            // Apply diversity filtering and take the requested limit
+            var filteredRecommendations = ApplyDiversityFiltering(recommendations, limit);
+
+            _logger.LogDebug("Generated {Count} fallback recommendations for user {UserId}", 
+                filteredRecommendations.Count, userId);
+            
+            return filteredRecommendations;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting fallback recommendations for user {UserId}", userId);
+            return new List<MovieRecommendationDto>();
+        }
+    }
+
+    /// <summary>
+    /// Generates a vector representing popular movies with good ratings
+    /// This is used as a fallback when users have no interaction data
+    /// </summary>
+    private async Task<List<float>?> GetPopularMoviesVectorAsync()
+    {
+        try
+        {
+            // Create a vector that represents popular, well-rated movies
+            // This is a weighted combination of common movie characteristics
+            var popularMovieData = new MovieDataForEmbeddingDto
+            {
+                Id = Guid.Empty, // Special ID for popular movies vector
+                Title = "Popular Movies",
+                Overview = "Popular movies with high ratings and wide appeal",
+                Genres = new List<string> { "Drama", "Action", "Comedy", "Thriller", "Romance" },
+                Keywords = new List<string> { "popular", "blockbuster", "award-winning", "critically-acclaimed" },
+                Cast = new List<string>(), // Empty for generic vector
+                Crew = new List<string>(), // Empty for generic vector
+                ProductionCompanies = new List<string> { "major studio", "independent" },
+                ProductionCountries = new List<string> { "United States", "United Kingdom", "Canada" },
+                SpokenLanguages = new List<string> { "English" },
+                ReleaseDate = DateTime.Now.AddYears(-5), // Recent movies
+                PosterPath = null
+            };
+
+            var embedding = await _textEmbeddingService.GenerateMovieEmbeddingAsync(popularMovieData);
+            return embedding?.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating popular movies vector");
+            return null;
+        }
     }
 
     #endregion

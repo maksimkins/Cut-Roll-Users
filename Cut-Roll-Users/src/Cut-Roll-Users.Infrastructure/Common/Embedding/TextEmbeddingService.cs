@@ -325,8 +325,14 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
                 embedding = GenerateFallbackEmbedding(text);
             }
 
-            // Cache the result
-            _cache.Set(cacheKey, embedding, TimeSpan.FromHours(24));
+            // Cache the result with size-based eviction
+            var cacheOptions = new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24),
+                Size = CalculateEmbeddingSize(embedding),
+                Priority = CacheItemPriority.Normal
+            };
+            _cache.Set(cacheKey, embedding, cacheOptions);
             UpdateCacheStats(embedding);
 
             return Task.FromResult<float[]?>(embedding);
@@ -369,8 +375,14 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
                 embedding = GenerateFallbackEmbedding(textToEmbed);
             }
 
-            // Cache the result
-            _cache.Set(cacheKey, embedding, TimeSpan.FromHours(24));
+            // Cache the result with size-based eviction
+            var cacheOptions = new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24),
+                Size = CalculateEmbeddingSize(embedding),
+                Priority = CacheItemPriority.Normal
+            };
+            _cache.Set(cacheKey, embedding, cacheOptions);
             UpdateCacheStats(embedding);
 
             return Task.FromResult<float[]?>(embedding);
