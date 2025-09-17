@@ -68,7 +68,7 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         {
             var modelPath = !string.IsNullOrEmpty(_localEmbeddingOptions.ModelPath) 
                 ? _localEmbeddingOptions.ModelPath 
-                : Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "Data", "Models", "model.onnx");
+                : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "Data", "Models", "model.onnx");
                 
             if (File.Exists(modelPath))
             {
@@ -98,7 +98,7 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         {
             var tokenizerPath = !string.IsNullOrEmpty(_localEmbeddingOptions.TokenizerPath) 
                 ? _localEmbeddingOptions.TokenizerPath 
-                : Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "Data", "Models", "tokenizer.json");
+                : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "Data", "Models", "tokenizer.json");
                 
             if (File.Exists(tokenizerPath))
             {
