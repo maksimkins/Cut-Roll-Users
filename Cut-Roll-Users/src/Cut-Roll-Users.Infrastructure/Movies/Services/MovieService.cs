@@ -244,6 +244,11 @@ public class MovieService : IMovieService
         return await _movieRepository.MarkMovieAsNotEmbeddedAsync(movieId);
     }
 
+    public async Task<bool> ResetAllMoviesEmbeddingFlagAsync()
+    {
+        return await _movieRepository.ResetAllMoviesEmbeddingFlagAsync();
+    }
+
     public async Task<PagedResult<MovieSimplifiedDto>> SearchMovieAsync(MovieSearchRequest? dto)
     {
         if (dto == null)

@@ -8,6 +8,7 @@ public interface IVectorMovieDatabaseService
     Task<bool> UpdateMovieEmbeddingAsync(MovieEmbeddingDto embedding);
     Task<List<MovieRecommendationDto>> FindSimilarMoviesAsync(List<float> queryVector, int limit = 10, List<Guid>? excludeMovieIds = null);
     Task<bool> DeleteMovieEmbeddingAsync(Guid movieId, bool hasEmbedding = true);
+    Task<bool> DeleteAllVectorsAsync();
     Task<bool> InitializeIndexAsync();
     Task<int> GetEmbeddedMoviesCountAsync();
     Task<bool> IsVectorDbEmptyAsync();

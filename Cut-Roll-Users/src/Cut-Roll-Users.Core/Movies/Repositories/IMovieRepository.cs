@@ -27,6 +27,7 @@ IUpdateAsync<MovieUpdateDto, Guid?>, IDeleteByIdAsync<Guid, Guid?>, ICreateAsync
     Task<int> GetMoviesWithoutEmbeddingsCountAsync();
     Task<bool> MarkMovieAsEmbeddedAsync(Guid movieId);
     Task<bool> MarkMovieAsNotEmbeddedAsync(Guid movieId);
+    Task<bool> ResetAllMoviesEmbeddingFlagAsync();
     Task<string?> GetMoviePosterPathAsync(Guid movieId);
 
 }

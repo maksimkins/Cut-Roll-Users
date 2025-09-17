@@ -114,6 +114,49 @@ public class RecommendationController : ControllerBase
         }
         catch (Exception ex) { return this.InternalServerError(ex.Message); }
     }
+
+    /// <summary>
+    /// Resets all embeddings by deleting all vectors from Pinecone and setting HasEmbedding=false for all movies
+    /// Background service will regenerate all embeddings on next run with consistent method
+    /// </summary>
+    [HttpPost("reset-embeddings")]
+    public async Task<IActionResult> ResetAllEmbeddings()
+    {
+        try
+        {
+            var success = await _embeddingService.ResetAllEmbeddingsAsync();
+            
+            if (success)
+            {
+                var response = new
+                {
+                    Success = true,
+                    Message = "Embeddings reset successfully! All vectors deleted from Pinecone and HasEmbedding set to false for all movies.",
+                    Instructions = new
+                    {
+                        Step1 = "Restart your application",
+                        Step2 = "Background service will automatically regenerate all embeddings",
+                        Step3 = "New embeddings will use consistent method for better similarity scores",
+                        ExpectedResult = "Much higher similarity scores (0.7+ instead of 0.112) and better recommendations"
+                    }
+                };
+                
+                return Ok(response);
+            }
+            else
+            {
+                return BadRequest(new
+                {
+                    Success = false,
+                    Message = "Failed to reset embeddings. Check logs for details."
+                });
+            }
+        }
+        catch (Exception ex) 
+        { 
+            return this.InternalServerError($"Error resetting embeddings: {ex.Message}"); 
+        }
+    }
 }
 
 // Additional DTO for similar movies request

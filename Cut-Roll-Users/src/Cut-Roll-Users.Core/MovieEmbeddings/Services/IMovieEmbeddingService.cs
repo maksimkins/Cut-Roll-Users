@@ -13,4 +13,5 @@ public interface IMovieEmbeddingService
     Task<EmbeddingStatusDto> GetEmbeddingStatusAsync();
     Task<int> GetTotalMovieCountAsync();
     Task<int> GetProcessedMovieCountAsync();
+    Task<bool> ResetAllEmbeddingsAsync();
 }

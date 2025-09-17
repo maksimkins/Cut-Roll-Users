@@ -286,6 +286,46 @@ public class MovieEmbeddingService : IMovieEmbeddingService
     /// <summary>
     /// Converts SqlMovieData to MovieDataForEmbeddingDto
     /// </summary>
+    /// <summary>
+    /// Deletes all vectors from Pinecone and resets HasEmbedding flag for all movies
+    /// This will force the background service to regenerate all embeddings with consistent method
+    /// </summary>
+    public async Task<bool> ResetAllEmbeddingsAsync()
+    {
+        try
+        {
+            _logger.LogWarning("RESETTING ALL EMBEDDINGS - This will delete all vectors from Pinecone and reset database flags");
+            
+            // Step 1: Delete all vectors from Pinecone
+            _logger.LogInformation("Step 1: Deleting all vectors from Pinecone...");
+            var deleteSuccess = await _vectorDatabaseService.DeleteAllVectorsAsync();
+            if (!deleteSuccess)
+            {
+                _logger.LogError("Failed to delete all vectors from Pinecone");
+                return false;
+            }
+            _logger.LogInformation("Successfully deleted all vectors from Pinecone");
+
+            // Step 2: Reset HasEmbedding flag for all movies in database
+            _logger.LogInformation("Step 2: Resetting HasEmbedding flag for all movies...");
+            var resetSuccess = await _movieService.ResetAllMoviesEmbeddingFlagAsync();
+            if (!resetSuccess)
+            {
+                _logger.LogError("Failed to reset HasEmbedding flag for all movies");
+                return false;
+            }
+            _logger.LogInformation("Successfully reset HasEmbedding flag for all movies");
+
+            _logger.LogInformation("Embedding reset completed successfully. Background service will regenerate all embeddings on next run.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resetting all embeddings");
+            return false;
+        }
+    }
+
     private static MovieDataForEmbeddingDto ConvertToMovieDataForEmbedding(SqlMovieData sqlData)
     {
         return new MovieDataForEmbeddingDto

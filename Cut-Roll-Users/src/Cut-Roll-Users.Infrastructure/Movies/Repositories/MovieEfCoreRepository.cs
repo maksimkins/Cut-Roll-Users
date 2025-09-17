@@ -435,6 +435,28 @@ public async Task<int> GetMovieWatchedCountAsync(Guid movieId)
         return true;
     }
 
+    public async Task<bool> ResetAllMoviesEmbeddingFlagAsync()
+    {
+        try
+        {
+            // Update all movies to set HasEmbedding = false
+            var movies = await _context.Movies.ToListAsync();
+            foreach (var movie in movies)
+            {
+                movie.HasEmbedding = false;
+                movie.EmbeddingUpdatedAt = null;
+                movie.EmbeddingVersion = null;
+            }
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
     public async Task<string?> GetMoviePosterPathAsync(Guid movieId)
     {
         var filepath = await _context.Movies

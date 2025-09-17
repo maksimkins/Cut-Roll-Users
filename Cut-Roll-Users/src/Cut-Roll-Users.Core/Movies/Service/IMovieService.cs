@@ -34,6 +34,7 @@ public interface IMovieService
     Task<int> GetMoviesWithoutEmbeddingsCountAsync();
     Task<bool> MarkMovieAsEmbeddedAsync(Guid movieId);
     Task<bool> MarkMovieAsNotEmbeddedAsync(Guid movieId);
+    Task<bool> ResetAllMoviesEmbeddingFlagAsync();
     
     Task<string?> GetMoviePosterPathAsync(Guid movieId);
 }

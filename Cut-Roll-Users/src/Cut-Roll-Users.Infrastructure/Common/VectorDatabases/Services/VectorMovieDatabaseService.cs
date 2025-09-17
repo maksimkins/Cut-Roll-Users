@@ -346,6 +346,35 @@ public class VectorMovieDatabaseService : IVectorMovieDatabaseService, IDisposab
         }
     }
 
+    /// <summary>
+    /// Deletes all vectors from the Pinecone index
+    /// WARNING: This will remove all movie embeddings!
+    /// </summary>
+    public async Task<bool> DeleteAllVectorsAsync()
+    {
+        if (_disposed) throw new ObjectDisposedException(nameof(VectorMovieDatabaseService));
+
+        try
+        {
+            _logger.LogWarning("DELETING ALL VECTORS FROM PINECONE INDEX - This action cannot be undone!");
+
+            // Delete all vectors by using delete with empty filter (deletes everything)
+            await _index.DeleteAsync(new DeleteRequest
+            {
+                DeleteAll = true,
+                Namespace = _options.Namespace ?? "__default__"
+            });
+
+            _logger.LogInformation("Successfully deleted all vectors from Pinecone index");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete all vectors from Pinecone index");
+            return false;
+        }
+    }
+
     public void Dispose()
     {
         if (!_disposed)
