@@ -100,11 +100,22 @@ public class RecommendationController : ControllerBase
             var isVectorDbEmpty = await _vectorService.IsVectorDbEmptyAsync();
             var embeddedMoviesCount = await _vectorService.GetEmbeddedMoviesCountAsync();
             
+            // Get embedding status including background service info
+            var embeddingStatus = await _embeddingService.GetEmbeddingStatusAsync();
+            
             var health = new
             {
                 IsHealthy = !isVectorDbEmpty && embeddedMoviesCount > 0,
                 IsVectorDbEmpty = isVectorDbEmpty,
                 EmbeddedMoviesCount = embeddedMoviesCount,
+                BackgroundService = new
+                {
+                    IsProcessing = embeddingStatus.IsProcessing,
+                    LastProcessedAt = embeddingStatus.LastProcessedAt,
+                    Status = embeddingStatus.Status,
+                    TotalProcessed = embeddingStatus.TotalProcessedMovies,
+                    TotalFailed = embeddingStatus.TotalFailedMovies
+                },
                 Message = isVectorDbEmpty ? "Vector database is empty" : 
                          embeddedMoviesCount == 0 ? "No movies have been embedded" : 
                          "Recommendation system is healthy"
@@ -113,6 +124,57 @@ public class RecommendationController : ControllerBase
             return Ok(health);
         }
         catch (Exception ex) { return this.InternalServerError(ex.Message); }
+    }
+
+    /// <summary>
+    /// Manually triggers the background service to process movies without embeddings
+    /// ADMIN ONLY - This will start processing immediately
+    /// </summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("trigger-processing")]
+    public async Task<IActionResult> TriggerBackgroundProcessing()
+    {
+        try
+        {
+            // Get the background service and trigger processing
+            var backgroundService = HttpContext.RequestServices.GetRequiredService<Cut_Roll_Users.Core.Common.BackgroundServices.IMovieEmbeddingBackgroundService>();
+            
+            var isProcessing = await backgroundService.IsProcessingAsync();
+            if (isProcessing)
+            {
+                return BadRequest(new
+                {
+                    Success = false,
+                    Message = "Background service is already processing movies. Please wait for current cycle to complete."
+                });
+            }
+
+            // Trigger processing in background
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await backgroundService.ProcessNewMoviesAsync();
+                }
+                catch (Exception ex)
+                {
+                    // Log error but don't throw to avoid breaking the response
+                    var logger = HttpContext.RequestServices.GetRequiredService<ILogger<RecommendationController>>();
+                    logger.LogError(ex, "Error in manual background processing trigger");
+                }
+            });
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Background processing triggered successfully. Check logs for progress.",
+                Note = "Processing runs in background. Use /health endpoint to monitor status."
+            });
+        }
+        catch (Exception ex)
+        {
+            return this.InternalServerError($"Error triggering background processing: {ex.Message}");
+        }
     }
 
     /// <summary>

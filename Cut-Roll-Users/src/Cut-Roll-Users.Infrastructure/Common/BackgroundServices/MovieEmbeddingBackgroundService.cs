@@ -43,11 +43,18 @@ public class MovieEmbeddingBackgroundService : BackgroundService, IMovieEmbeddin
         // Wait for the application to fully start
         await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
 
+        var consecutiveErrors = 0;
+        const int maxConsecutiveErrors = 5;
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
+                _logger.LogDebug("Starting background service processing cycle");
                 await ProcessNewMoviesAsync();
+                
+                // Reset error counter on successful processing
+                consecutiveErrors = 0;
                 
                 // Wait for the configured interval before next processing
                 var interval = TimeSpan.FromMinutes(_options.ProcessingIntervalMinutes);
@@ -61,10 +68,26 @@ public class MovieEmbeddingBackgroundService : BackgroundService, IMovieEmbeddin
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in MovieEmbeddingBackgroundService processing cycle");
+                consecutiveErrors++;
+                _logger.LogError(ex, "Error in MovieEmbeddingBackgroundService processing cycle (Error #{ErrorCount})", consecutiveErrors);
                 
-                // Wait before retrying on error
-                await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                // If too many consecutive errors, wait longer before retrying
+                var retryDelay = consecutiveErrors >= maxConsecutiveErrors 
+                    ? TimeSpan.FromMinutes(30) // Wait 30 minutes if too many errors
+                    : TimeSpan.FromMinutes(5);  // Wait 5 minutes for normal errors
+                
+                _logger.LogWarning("Waiting {Delay} minutes before retry (Error #{ErrorCount}/{MaxErrors})", 
+                    retryDelay.TotalMinutes, consecutiveErrors, maxConsecutiveErrors);
+                
+                try
+                {
+                    await Task.Delay(retryDelay, stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogInformation("Background service cancelled during retry delay");
+                    break;
+                }
             }
         }
 
@@ -90,50 +113,86 @@ public class MovieEmbeddingBackgroundService : BackgroundService, IMovieEmbeddin
             var sqlDataReaderService = scope.ServiceProvider.GetRequiredService<ISqlDataReaderService>();
             var movieService = scope.ServiceProvider.GetRequiredService<IMovieService>();
 
-            // Get count of movies without embeddings
-            var totalMovies = await sqlDataReaderService.GetTotalMovieCountAsync();
-            var moviesWithoutEmbeddings = await movieService.GetMoviesWithoutEmbeddingsCountAsync();
-            var newMoviesCount = moviesWithoutEmbeddings;
-
-            if (newMoviesCount <= 0)
+            // Get count of movies without embeddings with better error handling
+            int totalMovies, moviesWithoutEmbeddings;
+            try
             {
-                _logger.LogDebug("No new movies to process");
+                totalMovies = await sqlDataReaderService.GetTotalMovieCountAsync();
+                moviesWithoutEmbeddings = await movieService.GetMoviesWithoutEmbeddingsCountAsync();
+                _logger.LogDebug("Database stats - Total movies: {Total}, Without embeddings: {WithoutEmbeddings}", 
+                    totalMovies, moviesWithoutEmbeddings);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get movie counts from database");
+                throw; // Re-throw to trigger retry logic
+            }
+
+            if (moviesWithoutEmbeddings <= 0)
+            {
+                _logger.LogDebug("No new movies to process (movies without embeddings: {Count})", moviesWithoutEmbeddings);
                 return;
             }
 
-            _logger.LogInformation("Found {NewMoviesCount} movies without embeddings", newMoviesCount);
+            _logger.LogInformation("Found {NewMoviesCount} movies without embeddings out of {TotalMovies} total movies", 
+                moviesWithoutEmbeddings, totalMovies);
 
-            // Process movies in batches
+            // Process movies in batches with improved error handling
             var batchSize = _options.BatchSize;
-            var offset = 0; // Start from the beginning since we're processing movies without embeddings
+            var offset = 0;
             var processedInCycle = 0;
             var failedInCycle = 0;
+            var batchNumber = 1;
 
-            while (offset < newMoviesCount)
+            while (offset < moviesWithoutEmbeddings)
             {
-                var (successCount, failedCount) = await movieEmbeddingService.ProcessMoviesBatchAsync(offset, batchSize);
-                
-                processedInCycle += successCount;
-                failedInCycle += failedCount;
-                _totalProcessed += successCount;
-                _totalFailed += failedCount;
+                try
+                {
+                    _logger.LogDebug("Processing batch {BatchNumber} (offset: {Offset}, size: {BatchSize})", 
+                        batchNumber, offset, batchSize);
 
-                _logger.LogInformation("Processed batch {Offset}-{End}: Success={Success}, Failed={Failed}", 
-                    offset, Math.Min(offset + batchSize, totalMovies), successCount, failedCount);
+                    var (successCount, failedCount) = await movieEmbeddingService.ProcessMoviesBatchAsync(offset, batchSize);
+                    
+                    processedInCycle += successCount;
+                    failedInCycle += failedCount;
+                    _totalProcessed += successCount;
+                    _totalFailed += failedCount;
 
-                offset += batchSize;
+                    _logger.LogInformation("Batch {BatchNumber} completed: Success={Success}, Failed={Failed}, Total processed this cycle: {TotalProcessed}", 
+                        batchNumber, successCount, failedCount, processedInCycle);
 
-                // Small delay between batches to avoid overwhelming the system
-                await Task.Delay(TimeSpan.FromMilliseconds(_options.BatchDelayMs));
+                    offset += batchSize;
+                    batchNumber++;
+
+                    // Small delay between batches to avoid overwhelming the system
+                    if (offset < moviesWithoutEmbeddings) // Only delay if there are more batches
+                    {
+                        await Task.Delay(TimeSpan.FromMilliseconds(_options.BatchDelayMs));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error processing batch {BatchNumber} (offset: {Offset})", batchNumber, offset);
+                    failedInCycle++;
+                    _totalFailed++;
+                    
+                    // Continue with next batch instead of stopping completely
+                    offset += batchSize;
+                    batchNumber++;
+                    
+                    // Longer delay after batch error
+                    await Task.Delay(TimeSpan.FromMilliseconds(_options.BatchDelayMs * 2));
+                }
             }
 
             _lastProcessedAt = DateTime.UtcNow;
-            _logger.LogInformation("Completed processing cycle. Processed: {Processed}, Failed: {Failed}", 
-                processedInCycle, failedInCycle);
+            _logger.LogInformation("Completed processing cycle. Processed: {Processed}, Failed: {Failed}, Total processed: {TotalProcessed}, Total failed: {TotalFailed}", 
+                processedInCycle, failedInCycle, _totalProcessed, _totalFailed);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing new movies");
+            _logger.LogError(ex, "Critical error in ProcessNewMoviesAsync - this will trigger retry logic");
+            throw; // Re-throw to trigger the retry logic in ExecuteAsync
         }
         finally
         {
