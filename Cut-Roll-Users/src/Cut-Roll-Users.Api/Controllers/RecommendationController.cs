@@ -118,7 +118,9 @@ public class RecommendationController : ControllerBase
     /// <summary>
     /// Resets all embeddings by deleting all vectors from Pinecone and setting HasEmbedding=false for all movies
     /// Background service will regenerate all embeddings on next run with consistent method
+    /// ADMIN ONLY - This operation deletes ALL vectors and resets database flags
     /// </summary>
+    [Authorize(Roles = "Admin")]
     [HttpPost("reset-embeddings")]
     public async Task<IActionResult> ResetAllEmbeddings()
     {
