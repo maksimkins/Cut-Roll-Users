@@ -702,11 +702,12 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
     /// </summary>
     private long[] TokenizeText(string text)
     {
-        const int maxTokens = 512; // Standard BERT limit
+        const int maxTokens = 512; // Standard BERT limit for rich context
         const int vocabSize = 30000; // Common vocabulary size
         
         if (_tokenizerVocabulary != null)
         {
+            _logger.LogDebug("Using tokenizer vocabulary with {Count} tokens", _tokenizerVocabulary.Count);
             // Use proper tokenizer vocabulary
             var tokens = text.ToLowerInvariant()
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
@@ -721,6 +722,7 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         }
         else
         {
+            _logger.LogDebug("Using fallback tokenization (no vocabulary loaded)");
             // Fallback to simple hash-based tokenization
             var tokens = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var inputIds = new long[Math.Min(tokens.Length, maxTokens)];
@@ -796,6 +798,9 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
             
         var output = embeddingOutput.AsEnumerable<float>().ToArray();
         
+        // Get expected dimension early
+        var expectedDimension = _pineconeOptions.VectorDimensions;
+        
         // Handle different output shapes for last_hidden_state
         if (embeddingOutput.Name.Contains("last_hidden_state"))
         {
@@ -814,11 +819,32 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
                 
                 if (output.Length == expectedTotalSize)
                 {
-                    // Use the full last_hidden_state as a flattened vector (4,608 dimensions)
-                    // This preserves all token-level information for maximum semantic richness
-                    _logger.LogInformation("Using full last_hidden_state: {SeqLen} tokens x {HiddenSize} dimensions = {Total} dimensions", 
+                    // Apply mean pooling to reduce from [seq_len, hidden_size] to [hidden_size]
+                    // This preserves semantic information while staying within Pinecone limits
+                    _logger.LogInformation("Applying mean pooling: {SeqLen} tokens x {HiddenSize} dimensions = {Total} dimensions", 
                         sequenceLength, hiddenSize, output.Length);
-                    // output is already the correct size (4,608), no pooling needed
+                    
+                    var pooledOutput = new float[hiddenSize];
+                    for (int i = 0; i < hiddenSize; i++)
+                    {
+                        float sum = 0;
+                        for (int j = 0; j < sequenceLength; j++)
+                        {
+                            sum += output[j * hiddenSize + i];
+                        }
+                        pooledOutput[i] = sum / sequenceLength; // Mean pooling
+                    }
+                    
+                    // Now pad from 384 to 4608 dimensions
+                    var paddedOutput = new float[expectedDimension];
+                    for (int i = 0; i < expectedDimension; i++)
+                    {
+                        var sourceIndex = i % hiddenSize;
+                        paddedOutput[i] = pooledOutput[sourceIndex];
+                    }
+                    
+                    _logger.LogInformation("Mean pooled and padded: {HiddenSize} -> {Expected} dimensions", hiddenSize, expectedDimension);
+                    output = paddedOutput;
                 }
                 else
                 {
@@ -833,7 +859,6 @@ public class TextEmbeddingService : ITextEmbeddingService, ILocalEmbeddingServic
         }
         
         // Check if the output dimension matches expected Pinecone dimension
-        var expectedDimension = _pineconeOptions.VectorDimensions;
         _logger.LogInformation("Final embedding dimensions: {Actual}, Expected: {Expected}", output.Length, expectedDimension);
         
         if (output.Length != expectedDimension)
