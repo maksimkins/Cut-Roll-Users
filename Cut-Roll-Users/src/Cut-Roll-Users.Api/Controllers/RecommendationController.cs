@@ -81,6 +81,32 @@ public class RecommendationController : ControllerBase
         catch (Exception ex) { return this.InternalServerError(ex.Message); }
     }
 
+    /// <summary>
+    /// Debug endpoint to check if two users are mutual friends
+    /// </summary>
+    [Authorize]
+    [HttpGet("debug/mutual-friends/{userId1}/{userId2}")]
+    public async Task<IActionResult> CheckMutualFriends(string userId1, string userId2)
+    {
+        try
+        {
+            var followService = HttpContext.RequestServices.GetRequiredService<Cut_Roll_Users.Core.Follows.Services.IFollowService>();
+            var areMutualFriends = await followService.AreMutualFriendsAsync(userId1, userId2);
+            
+            return Ok(new
+            {
+                UserId1 = userId1,
+                UserId2 = userId2,
+                AreMutualFriends = areMutualFriends,
+                Message = areMutualFriends ? "Users are mutual friends" : "Users are NOT mutual friends"
+            });
+        }
+        catch (Exception ex)
+        {
+            return this.InternalServerError($"Error checking mutual friends: {ex.Message}");
+        }
+    }
+
     [HttpGet("status")]
     public async Task<IActionResult> GetEmbeddingStatus()
     {

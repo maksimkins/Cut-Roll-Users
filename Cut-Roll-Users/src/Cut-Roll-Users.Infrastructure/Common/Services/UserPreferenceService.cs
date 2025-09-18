@@ -707,36 +707,51 @@ public class UserPreferenceService : IUserPreferenceService
     {
         try
         {
-            _logger.LogDebug("Getting friend recommendations for users {UserId1} and {UserId2} with limit {Limit}", 
+            _logger.LogInformation("Getting friend recommendations for users {UserId1} and {UserId2} with limit {Limit}", 
                 request.UserId1, request.UserId2, request.Limit);
 
             // Validate request
             if (string.IsNullOrEmpty(request.UserId1) || string.IsNullOrEmpty(request.UserId2))
             {
+                _logger.LogWarning("Friend recommendations failed: One or both user IDs are empty");
                 throw new ArgumentException("Both user IDs must be provided");
             }
 
             if (request.UserId1 == request.UserId2)
             {
+                _logger.LogWarning("Friend recommendations failed: User IDs are the same");
                 throw new ArgumentException("User IDs must be different");
             }
 
             // Check if users are mutual friends
+            _logger.LogDebug("Checking if users {UserId1} and {UserId2} are mutual friends", request.UserId1, request.UserId2);
             var areMutualFriends = await _followService.AreMutualFriendsAsync(request.UserId1, request.UserId2);
+            _logger.LogInformation("Mutual friends check result: {AreMutualFriends}", areMutualFriends);
+            
             if (!areMutualFriends)
             {
-                throw new InvalidOperationException("Users must be mutual friends to get friend recommendations");
+                _logger.LogWarning("Friend recommendations failed: Users {UserId1} and {UserId2} are not mutual friends", request.UserId1, request.UserId2);
+                throw new InvalidOperationException("Users must be mutual friends to get friend recommendations. Both users need to follow each other.");
             }
 
             // Get both users' watched/liked movies
+            _logger.LogDebug("Getting user interaction data for both users");
             var user1Watched = await _movieService.GetWatchedMoviesByUserIdAsync(request.UserId1);
             var user1Liked = await _movieService.GetLikedMoviesByUserIdAsync(request.UserId1);
             var user2Watched = await _movieService.GetWatchedMoviesByUserIdAsync(request.UserId2);
             var user2Liked = await _movieService.GetLikedMoviesByUserIdAsync(request.UserId2);
 
+            _logger.LogInformation("User {UserId1} has {WatchedCount} watched and {LikedCount} liked movies", 
+                request.UserId1, user1Watched.Count, user1Liked.Count);
+            _logger.LogInformation("User {UserId2} has {WatchedCount} watched and {LikedCount} liked movies", 
+                request.UserId2, user2Watched.Count, user2Liked.Count);
+
             // Get both users' want-to-watch movies
             var user1WantToWatch = await GetWantToWatchMoviesAsync(request.UserId1);
             var user2WantToWatch = await GetWantToWatchMoviesAsync(request.UserId2);
+            
+            _logger.LogInformation("User {UserId1} has {WantToWatchCount} want-to-watch movies", request.UserId1, user1WantToWatch.Count);
+            _logger.LogInformation("User {UserId2} has {WantToWatchCount} want-to-watch movies", request.UserId2, user2WantToWatch.Count);
 
             // Create combined exclusion list (movies either user has interacted with)
             var excludeMovieIds = user1Watched.Select(m => m.Id)
@@ -748,39 +763,51 @@ public class UserPreferenceService : IUserPreferenceService
                 .Distinct()
                 .ToList();
 
-            _logger.LogDebug("Excluding {Count} movies that either user has interacted with", excludeMovieIds.Count);
+            _logger.LogInformation("Excluding {Count} movies that either user has interacted with", excludeMovieIds.Count);
 
             // Generate individual taste vectors
+            _logger.LogDebug("Generating taste vectors for both users");
             var user1TasteVector = await AnalyzeUserPreferencesAsync(request.UserId1);
             var user2TasteVector = await AnalyzeUserPreferencesAsync(request.UserId2);
 
             if (user1TasteVector == null || user2TasteVector == null)
             {
-                _logger.LogWarning("Could not generate taste vectors for one or both users");
+                _logger.LogWarning("Could not generate taste vectors for one or both users - User1: {User1Vector}, User2: {User2Vector}", 
+                    user1TasteVector != null ? "Generated" : "NULL", user2TasteVector != null ? "Generated" : "NULL");
                 return new List<FriendRecommendationDto>();
             }
 
+            _logger.LogInformation("Successfully generated taste vectors - User1: {User1Dimensions} dims, User2: {User2Dimensions} dims", 
+                user1TasteVector.Count, user2TasteVector.Count);
+
             // Combine taste vectors (weighted average)
             var combinedTasteVector = CombineUserTasteVectors(user1TasteVector, user2TasteVector);
+            _logger.LogInformation("Combined taste vector dimensions: {CombinedDimensions}", combinedTasteVector.Count);
 
             // Query vector database with combined vector
+            _logger.LogDebug("Querying vector database for similar movies with limit {Limit}", request.Limit * 2);
             var recommendations = await _vectorDatabaseService.FindSimilarMoviesAsync(
                 combinedTasteVector,
                 request.Limit * 2, // Get more to account for filtering
                 excludeMovieIds
             );
+            
+            _logger.LogInformation("Vector database returned {Count} recommendations before filtering", recommendations.Count);
 
             // Apply additional filters
+            _logger.LogDebug("Applying additional filters to recommendations");
             var filteredRecommendations = await ApplyFriendRecommendationFiltersAsync(recommendations, request);
+            _logger.LogInformation("After filtering: {FilteredCount} recommendations remain", filteredRecommendations.Count);
 
             // Generate recommendation explanations
+            _logger.LogDebug("Generating recommendation explanations");
             var friendRecommendations = await GenerateFriendRecommendationExplanationsAsync(
                 filteredRecommendations.Take(request.Limit).ToList(),
                 user1TasteVector,
                 user2TasteVector
             );
 
-            _logger.LogDebug("Generated {Count} friend recommendations for users {UserId1} and {UserId2}", 
+            _logger.LogInformation("Successfully generated {Count} friend recommendations for users {UserId1} and {UserId2}", 
                 friendRecommendations.Count, request.UserId1, request.UserId2);
 
             return friendRecommendations;
