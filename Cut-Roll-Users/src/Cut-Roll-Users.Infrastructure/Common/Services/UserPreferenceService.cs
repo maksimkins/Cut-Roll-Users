@@ -770,17 +770,69 @@ public class UserPreferenceService : IUserPreferenceService
             var user1TasteVector = await AnalyzeUserPreferencesAsync(request.UserId1);
             var user2TasteVector = await AnalyzeUserPreferencesAsync(request.UserId2);
 
-            if (user1TasteVector == null || user2TasteVector == null)
+            // Handle cases where both users have no interaction data
+            if (user1TasteVector == null && user2TasteVector == null)
             {
-                _logger.LogWarning("Could not generate taste vectors for one or both users - User1: {User1Vector}, User2: {User2Vector}", 
+                _logger.LogInformation("Both users have no interaction data - User1: {User1Vector}, User2: {User2Vector}. " +
+                    "Returning popular movies recommendations as fallback.", 
                     user1TasteVector != null ? "Generated" : "NULL", user2TasteVector != null ? "Generated" : "NULL");
-                return new List<FriendRecommendationDto>();
+                
+                // Return popular movies recommendations when both users have no data
+                var popularMoviesVector = await GetPopularMoviesVectorAsync();
+                if (popularMoviesVector == null)
+                {
+                    _logger.LogWarning("Could not generate popular movies vector, returning empty recommendations");
+                    return new List<FriendRecommendationDto>();
+                }
+
+                // Get popular movies recommendations
+                var popularRecommendations = await _vectorDatabaseService.FindSimilarMoviesAsync(
+                    popularMoviesVector,
+                    request.Limit * 2, // Get more to account for filtering
+                    excludeMovieIds
+                );
+
+                // Apply diversity filtering and take the requested limit
+                var popularFilteredRecommendations = ApplyDiversityFiltering(popularRecommendations, request.Limit);
+
+                // Convert to friend recommendations with appropriate explanations
+                var popularFriendRecommendations = await GenerateFriendRecommendationExplanationsAsync(
+                    popularFilteredRecommendations.Take(request.Limit).ToList(),
+                    popularMoviesVector,
+                    popularMoviesVector
+                );
+
+                _logger.LogInformation("Successfully generated {Count} popular movies recommendations for users with no interaction data", 
+                    popularFriendRecommendations.Count);
+
+                return popularFriendRecommendations;
+            }
+
+            // If one user has no data, use only the other user's taste vector
+            if (user1TasteVector == null && user2TasteVector != null)
+            {
+                _logger.LogInformation("User1 has no interaction data, using only User2's taste vector for recommendations");
+                // Use only user2's taste vector
+                user1TasteVector = user2TasteVector;
+            }
+            else if (user2TasteVector == null && user1TasteVector != null)
+            {
+                _logger.LogInformation("User2 has no interaction data, using only User1's taste vector for recommendations");
+                // Use only user1's taste vector
+                user2TasteVector = user1TasteVector;
             }
 
             _logger.LogInformation("Successfully generated taste vectors - User1: {User1Dimensions} dims, User2: {User2Dimensions} dims", 
-                user1TasteVector.Count, user2TasteVector.Count);
+                user1TasteVector?.Count ?? 0, user2TasteVector?.Count ?? 0);
 
             // Combine taste vectors (weighted average)
+            if (user1TasteVector == null || user2TasteVector == null)
+            {
+                _logger.LogError("One or both taste vectors are null after processing - User1: {User1Vector}, User2: {User2Vector}", 
+                    user1TasteVector != null ? "Generated" : "NULL", user2TasteVector != null ? "Generated" : "NULL");
+                return new List<FriendRecommendationDto>();
+            }
+            
             var combinedTasteVector = CombineUserTasteVectors(user1TasteVector, user2TasteVector);
             _logger.LogInformation("Combined taste vector dimensions: {CombinedDimensions}", combinedTasteVector.Count);
 
@@ -951,17 +1003,33 @@ public class UserPreferenceService : IUserPreferenceService
     {
         var reasons = new List<string>();
 
-        // Base similarity reason
-        if (recommendation.SimilarityScore > 0.8)
-            reasons.Add("Both users have very similar taste preferences");
-        else if (recommendation.SimilarityScore > 0.6)
-            reasons.Add("Both users have similar taste preferences");
-        else
-            reasons.Add("Movie matches both users' preferences");
+        // Check if both vectors are the same (popular movies fallback)
+        var isPopularMoviesFallback = user1Vector.Count == user2Vector.Count && 
+                                     user1Vector.Zip(user2Vector, (a, b) => Math.Abs(a - b)).All(diff => diff < 0.001f);
 
-        // Add genre-based reasoning
-        if (recommendation.SimilarityScore > 0.7)
-            reasons.Add("High compatibility with both users' movie preferences");
+        if (isPopularMoviesFallback)
+        {
+            // Both users have no data, using popular movies
+            reasons.Add("Popular movie recommended for both users");
+            if (recommendation.SimilarityScore > 0.7)
+                reasons.Add("High-rated movie with wide appeal");
+            else
+                reasons.Add("Well-received movie that many people enjoy");
+        }
+        else
+        {
+            // Normal case with user taste vectors
+            if (recommendation.SimilarityScore > 0.8)
+                reasons.Add("Both users have very similar taste preferences");
+            else if (recommendation.SimilarityScore > 0.6)
+                reasons.Add("Both users have similar taste preferences");
+            else
+                reasons.Add("Movie matches both users' preferences");
+
+            // Add genre-based reasoning
+            if (recommendation.SimilarityScore > 0.7)
+                reasons.Add("High compatibility with both users' movie preferences");
+        }
 
         return string.Join(". ", reasons) + ".";
     }
