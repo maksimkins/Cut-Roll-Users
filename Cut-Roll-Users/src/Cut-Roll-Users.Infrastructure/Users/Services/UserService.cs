@@ -84,7 +84,7 @@ public class UserService : IUserService
         if (string.IsNullOrWhiteSpace(userId))
             throw new ArgumentNullException(nameof(userId), "UserId cannot be null or empty.");
             
-        return _userRepository.GetUserReviewCountAsync(userId);
+        return _userRepository.GetUserMovieLikeCountAsync(userId);
     }
 
     public Task<int> GetUserReviewCountAsync(string? userId)
